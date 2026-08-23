@@ -20,6 +20,10 @@ public partial class MainWindow : Window
     private bool _emergency;
     private bool _laserArmed;
     private LaserFrame? _holdOutput;
+    private LaserFrame? _lastVisual;
+    private LaserStageWindow? _stageWindow;
+    private bool _previewDetached;
+    private bool _closingStage;
 
     public MainWindow()
     {
@@ -53,6 +57,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _timer.Stop();
+            CloseStageWindow();
             _audio.Dispose();
             _dac.Dispose();
         };
@@ -165,12 +170,17 @@ public partial class MainWindow : Window
 
     private void ShowEmptyState(bool empty)
     {
-        EmptyOverlay.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-        ShowPreview.SetHintVisible(!empty);
         if (empty)
         {
             TitleText.Text = "Aucun show";
             KindText.Text = "USB-Box facultative";
+        }
+
+        SyncPreviewPlacement();
+        if (!_previewDetached)
+        {
+            EmptyOverlay.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+            ShowPreview.SetHintVisible(!empty);
         }
     }
 
@@ -291,6 +301,11 @@ public partial class MainWindow : Window
             Title = "Audio du show (MP3 / WAV)",
             Filter = AudioCue.OpenDialogFilter
         };
+        if (_show.Audio.ResolvedPath is not null)
+        {
+            dlg.InitialDirectory = IOPath.GetDirectoryName(_show.Audio.ResolvedPath);
+            dlg.FileName = IOPath.GetFileName(_show.Audio.ResolvedPath);
+        }
         if (dlg.ShowDialog() != true) return;
 
         if (_show.SourcePath is not null)
@@ -501,18 +516,18 @@ public partial class MainWindow : Window
         AudioText.Text = _show.Audio.Status switch
         {
             AudioStatus.Ready => AudioCue.FormatLabel(_show.Audio.ResolvedPath) + " : " + IOPath.GetFileName(_show.Audio.ResolvedPath),
+            AudioStatus.Known => "Piste connue (non chargée) : " + IOPath.GetFileName(_show.Audio.ResolvedPath) + " — cliquez Audio…",
             AudioStatus.MissingFile => "Audio lié mais absent : " + _show.Audio.LinkedPath,
-            _ => "Pas d’audio (MP3 / WAV) — la prévisualisation laser tourne sur horloge interne."
+            _ => "Pas d’audio — chargez un MP3 / WAV via Audio… (jamais automatique)."
         };
 
-        if (_show.Audio.IsPlayable)
-        {
-            LoadAudioFile(_show.Audio.ResolvedPath);
-        }
-        else
+        if (!_show.Audio.IsPlayable)
         {
             _audio.Close();
-            Waveform.Clear("Chargez un MP3 ou un WAV pour voir la forme d’onde et caler le laser.");
+            if (_show.Audio.Status != AudioStatus.Known)
+            {
+                Waveform.Clear("Chargez un MP3 ou un WAV pour voir la forme d’onde et caler le laser.");
+            }
         }
 
         UpdateSyncText();
@@ -522,9 +537,21 @@ public partial class MainWindow : Window
     {
         _audio.Stop();
         _audio.Close();
+        if (_show is not null && _show.Audio.Status == AudioStatus.Ready)
+        {
+            _show.Audio.Status = _show.Audio.ResolvedPath is not null && File.Exists(_show.Audio.ResolvedPath)
+                ? AudioStatus.Known
+                : AudioStatus.NotLinked;
+        }
+
         if (path is null || !File.Exists(path)) return;
         _audio.Open(IOPath.GetFullPath(path));
-        _audio.Volume = Math.Clamp(_show?.Audio.Volume ?? 1.0, 0, 1);
+        if (!_audio.IsOpen) return;
+        if (_show is not null)
+        {
+            _show.Audio.Status = AudioStatus.Ready;
+            _audio.Volume = Math.Clamp(_show.Audio.Volume, 0, 1);
+        }
     }
 
     private async Task LoadWaveformAsync()
@@ -533,7 +560,6 @@ public partial class MainWindow : Window
         if (path is null || !File.Exists(path) || !_audio.HasDuration) return;
         var duration = _audio.Duration;
         float[] peaks;
-        BeatGrid? grid = null;
         try
         {
             peaks = await Task.Run(() => WaveformSampler.Sample(path, 1200));
@@ -543,28 +569,8 @@ public partial class MainWindow : Window
             peaks = [];
         }
 
-        try
-        {
-            grid = await Task.Run(() => BeatAnalyzer.Analyze(path));
-        }
-        catch
-        {
-            grid = null;
-        }
-
         if (_show is null || _show.Audio.ResolvedPath != path) return;
-
-        _beatGrid = grid;
-        Waveform.SetAudio(peaks, duration, grid?.Beats());
-        if (_show is not null && grid is not null)
-        {
-            var msg = RhythmSync.Align(_show, grid, duration);
-            BindTimeline();
-            ClipEditor.Bind(Timeline.SelectedClip);
-            AutoSave();
-            StatusText.Text = AudioCue.FormatLabel(path) + " lié — " + msg;
-        }
-
+        Waveform.SetAudio(peaks, duration, _beatGrid?.Beats());
         BindTimeline();
         UpdateSyncText();
     }
@@ -609,13 +615,17 @@ public partial class MainWindow : Window
                 ? $"Audio {FormatTime(audio)} / laser {FormatTime(laser)}.{bpm} Recalez ou cliquez « Caler sur le rythme »."
                 : "Synchro : l’audio pilote le laser." + bpm;
         }
+        else if (_show.Audio.Status == AudioStatus.Known)
+        {
+            SyncText.Text = "Piste mémorisée mais non chargée. Cliquez Audio… pour la lire à vitesse réelle.";
+        }
         else
         {
-            SyncText.Text = "Sans audio, la prévisualisation utilise l’horloge interne. Associez un MP3 ou un WAV pour le synchro réel.";
+            SyncText.Text = "Sans audio chargé, la prévisualisation utilise l’horloge interne. Cliquez Audio… (jamais automatique).";
         }
     }
 
-    private void AlignRhythm_Click(object sender, RoutedEventArgs e)
+    private async void AlignRhythm_Click(object sender, RoutedEventArgs e)
     {
         if (_show is null)
         {
@@ -623,18 +633,24 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_show.Audio.ResolvedPath is null || !File.Exists(_show.Audio.ResolvedPath))
+        if (!_show.Audio.IsPlayable || _show.Audio.ResolvedPath is null)
         {
-            MessageBox.Show(this, "Associez un MP3 ou un WAV, puis Lumina détectera le rythme et calera les clips.", "Lumina", MessageBoxButton.OK);
+            MessageBox.Show(this, "Chargez d’abord la piste via Audio… (le chargement n’est jamais automatique).", "Lumina", MessageBoxButton.OK);
             return;
         }
 
+        var path = _show.Audio.ResolvedPath;
+        var resume = _clock.IsRunning;
+        if (resume) PausePlayback();
         try
         {
-            _beatGrid = BeatAnalyzer.Analyze(_show.Audio.ResolvedPath);
-            var duration = _audio.HasDuration ? _audio.Duration : _beatGrid.Duration;
-            var msg = RhythmSync.Align(_show, _beatGrid, duration);
-            Waveform.SetAudio(WaveformSampler.Sample(_show.Audio.ResolvedPath, 1200), duration, _beatGrid.Beats());
+            var grid = await Task.Run(() => BeatAnalyzer.Analyze(path));
+            if (_show is null) return;
+            _beatGrid = grid;
+            var duration = _audio.HasDuration ? _audio.Duration : grid.Duration;
+            var msg = RhythmSync.Align(_show, grid, duration);
+            var peaks = await Task.Run(() => WaveformSampler.Sample(path, 1200));
+            Waveform.SetAudio(peaks, duration, grid.Beats());
             BindTimeline();
             ClipEditor.Bind(Timeline.SelectedClip);
             AutoSave();
@@ -779,18 +795,25 @@ public partial class MainWindow : Window
         var colors = _show?.Colors ?? PaletteView.Profile;
         var frame = _holdOutput ?? _show?.FrameAt(time);
         var overlayEmpty = _show is null && _holdOutput is null;
-        EmptyOverlay.Visibility = overlayEmpty ? Visibility.Visible : Visibility.Collapsed;
-        ShowPreview.SetHintVisible(!overlayEmpty);
+        if (!_previewDetached)
+        {
+            EmptyOverlay.Visibility = overlayEmpty ? Visibility.Visible : Visibility.Collapsed;
+            ShowPreview.SetHintVisible(!overlayEmpty);
+        }
 
         if (frame is null)
         {
-            ShowPreview.Clear();
+            _lastVisual = null;
+            if (!_previewDetached) ShowPreview.Clear();
+            _stageWindow?.Clear();
             if (_laserArmed) _dac.Blank();
             return;
         }
 
         var visual = LaserColorConverter.Apply(frame, colors);
-        ShowPreview.ShowFrame(visual);
+        _lastVisual = visual;
+        if (!_previewDetached) ShowPreview.ShowFrame(visual);
+        _stageWindow?.ShowFrame(visual);
         Waveform.SetPosition(time);
         Timeline.SetPosition(time);
         TimeText.Text = FormatTime(time) + " / " + FormatTime(_clock.TimelineDuration);
@@ -848,6 +871,69 @@ public partial class MainWindow : Window
             if (_clock.IsRunning) PausePlayback();
             else StartPlayback();
             e.Handled = true;
+        }
+    }
+
+    private void PreviewConsole_Click(object sender, RoutedEventArgs e) => SetPreviewDetached(false);
+
+    private void PreviewWindow_Click(object sender, RoutedEventArgs e) => SetPreviewDetached(true);
+
+    public void RequestEmergencyStop() => EmergencyStop();
+
+    private void SetPreviewDetached(bool detached)
+    {
+        if (detached == _previewDetached && (detached ? _stageWindow is not null : _stageWindow is null))
+        {
+            SyncPreviewPlacement();
+            return;
+        }
+
+        _previewDetached = detached;
+        if (detached) OpenStageWindow();
+        else CloseStageWindow();
+        SyncPreviewPlacement();
+        RenderAt(_clock.Position);
+    }
+
+    private void OpenStageWindow()
+    {
+        if (_stageWindow is not null) return;
+        _stageWindow = new LaserStageWindow { Owner = this };
+        _stageWindow.DockRequested += OnStageDockRequested;
+        _stageWindow.Show();
+        _stageWindow.ShowFrame(_lastVisual);
+    }
+
+    private void OnStageDockRequested()
+    {
+        if (_closingStage) return;
+        _previewDetached = false;
+        _stageWindow = null;
+        SyncPreviewPlacement();
+        RenderAt(_clock.Position);
+    }
+
+    private void CloseStageWindow()
+    {
+        if (_stageWindow is null) return;
+        _closingStage = true;
+        _stageWindow.DockRequested -= OnStageDockRequested;
+        var window = _stageWindow;
+        _stageWindow = null;
+        try { window.Close(); } catch { /* already closing */ }
+        _closingStage = false;
+    }
+
+    private void SyncPreviewPlacement()
+    {
+        PreviewConsoleItem.IsChecked = !_previewDetached;
+        PreviewWindowItem.IsChecked = _previewDetached;
+        DetachedOverlay.Visibility = _previewDetached ? Visibility.Visible : Visibility.Collapsed;
+        DetachPreviewButton.Visibility = _previewDetached ? Visibility.Collapsed : Visibility.Visible;
+        ShowPreview.Visibility = _previewDetached ? Visibility.Collapsed : Visibility.Visible;
+        if (_previewDetached)
+        {
+            EmptyOverlay.Visibility = Visibility.Collapsed;
         }
     }
 

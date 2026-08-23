@@ -1,14 +1,18 @@
 using System.Windows.Threading;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
 namespace Lumina.App;
 
-/// <summary>Playback for MP3 and WAV (and other NAudio formats), driving the show clock.</summary>
+/// <summary>
+/// Plays MP3/WAV at the file's native sample rate. WASAPI shared mode lets Windows mix
+/// without changing pitch; WaveOut + 16-bit PCM is the fallback.
+/// </summary>
 public sealed class ShowAudioPlayer : IDisposable
 {
     private readonly Dispatcher _dispatcher;
     private AudioFileReader? _reader;
-    private WaveOutEvent? _output;
+    private IWavePlayer? _output;
     private bool _stopping;
 
     public ShowAudioPlayer(Dispatcher dispatcher)
@@ -20,7 +24,7 @@ public sealed class ShowAudioPlayer : IDisposable
     public event Action? Ended;
     public event Action<string>? Failed;
 
-    public bool IsOpen => _reader is not null;
+    public bool IsOpen => _reader is not null && _output is not null;
     public bool HasDuration => _reader is { TotalTime.TotalSeconds: > 0.05 };
     public TimeSpan Duration => _reader?.TotalTime ?? TimeSpan.Zero;
 
@@ -60,8 +64,7 @@ public sealed class ShowAudioPlayer : IDisposable
         try
         {
             _reader = new AudioFileReader(path);
-            _output = new WaveOutEvent { DesiredLatency = 80 };
-            _output.Init(_reader);
+            _output = CreateOutput(_reader);
             _output.PlaybackStopped += OnStopped;
             Opened?.Invoke();
         }
@@ -102,6 +105,30 @@ public sealed class ShowAudioPlayer : IDisposable
     }
 
     public void Dispose() => Close();
+
+    private static IWavePlayer CreateOutput(AudioFileReader reader)
+    {
+        WasapiOut? wasapi = null;
+        try
+        {
+            // Shared mode: Windows resamples to the device mix format without pitch shift.
+            wasapi = new WasapiOut(AudioClientShareMode.Shared, 200);
+            wasapi.Init(reader);
+            return wasapi;
+        }
+        catch
+        {
+            wasapi?.Dispose();
+            var waveOut = new WaveOutEvent
+            {
+                DesiredLatency = 250,
+                NumberOfBuffers = 3
+            };
+            // 16-bit PCM at the file rate — avoids ACM float conversion that can slow playback.
+            waveOut.Init(reader.ToWaveProvider16());
+            return waveOut;
+        }
+    }
 
     private void OnStopped(object? sender, StoppedEventArgs e)
     {

@@ -114,6 +114,50 @@ public class AudioLocatorTests
     }
 
     [Fact]
+    public void Sidecar_path_is_remembered_but_not_ready_until_loaded()
+    {
+        var dir = Directory.CreateTempSubdirectory("lumina-known");
+        try
+        {
+            var show = Path.Combine(dir.FullName, "Tonight.xrs");
+            var mp3 = Path.Combine(dir.FullName, "Tonight.mp3");
+            File.WriteAllText(show, "dummy");
+            File.WriteAllBytes(mp3, [1, 2, 3]);
+            AudioLocator.Link(show, mp3, TimeSpan.Zero);
+
+            var cue = AudioLocator.FromSidecar(show);
+            Assert.Equal(AudioStatus.Known, cue.Status);
+            Assert.False(cue.IsPlayable);
+            Assert.Equal(mp3, cue.ResolvedPath);
+        }
+        finally
+        {
+            dir.Delete(true);
+        }
+    }
+
+    [Fact]
+    public void Opening_a_show_does_not_auto_attach_a_sibling_mp3()
+    {
+        var dir = Directory.CreateTempSubdirectory("lumina-no-autoload");
+        try
+        {
+            var showPath = Path.Combine(dir.FullName, "demo.ild");
+            var mp3 = Path.Combine(dir.FullName, "demo.mp3");
+            File.WriteAllText(showPath, "dummy");
+            File.WriteAllBytes(mp3, [1, 2, 3]);
+
+            var show = ShowLoader.FromFrames("demo", showPath, ShowKind.IldaAnimation, []);
+            Assert.NotEqual(AudioStatus.Ready, show.Audio.Status);
+            Assert.False(show.Audio.IsPlayable);
+        }
+        finally
+        {
+            dir.Delete(true);
+        }
+    }
+
+    [Fact]
     public void Reports_not_linked_when_no_audio_present()
     {
         var dir = Directory.CreateTempSubdirectory("lumina-none");

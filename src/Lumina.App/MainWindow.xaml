@@ -30,6 +30,10 @@
         <Separator/>
         <MenuItem Header="_Quitter" Click="Quit_Click"/>
       </MenuItem>
+      <MenuItem Header="_Affichage">
+        <MenuItem x:Name="PreviewConsoleItem" Header="Aperçu laser dans la _console" IsCheckable="True" IsChecked="True" Click="PreviewConsole_Click"/>
+        <MenuItem x:Name="PreviewWindowItem" Header="Aperçu laser dans une _fenêtre séparée" IsCheckable="True" Click="PreviewWindow_Click"/>
+      </MenuItem>
     </Menu>
 
     <StatusBar DockPanel.Dock="Bottom">
@@ -59,7 +63,7 @@
                 <TextBlock Text="Atelier Lumina" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"
                            Foreground="{StaticResource BoothAccent}"/>
                 <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource BoothMuted}" Margin="0,10,0,16"
-                           Text="Chargez un show, éditez la timeline et prévisualisez le laser à l’écran. La USB-Box n’est pas requise."/>
+                           Text="Chargez un show, éditez la timeline et prévisualisez le laser à l’écran. La USB-Box n’est pas requise. L’audio se charge uniquement via Audio…"/>
                 <WrapPanel HorizontalAlignment="Center">
                   <Button Content="Ouvrir un show…" Click="Open_Click" Padding="12,8" Margin="0,0,8,8"/>
                   <Button Content="Nouveau show" Click="New_Click" Padding="12,8" Margin="0,0,8,8"/>
@@ -68,6 +72,17 @@
                 </WrapPanel>
               </StackPanel>
             </Border>
+            <Border x:Name="DetachedOverlay" Visibility="Collapsed" Background="{StaticResource BoothBg}" CornerRadius="16">
+              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="420">
+                <TextBlock Text="Aperçu dans une fenêtre séparée" FontSize="18" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" Foreground="{StaticResource BoothAccent}"/>
+                <TextBlock TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource BoothMuted}" Margin="0,10,0,16"
+                           Text="Le show laser s’affiche dans l’autre fenêtre. Vous pouvez la placer sur un second écran."/>
+                <Button Content="Renvoyer l’aperçu à la console" Click="PreviewConsole_Click" Padding="12,8" HorizontalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+            <Button x:Name="DetachPreviewButton" Content="Fenêtre séparée" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="16" Padding="10,6" Click="PreviewWindow_Click" ToolTip="Afficher l’aperçu laser dans une fenêtre indépendante"/>
           </Grid>
 
           <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,8">

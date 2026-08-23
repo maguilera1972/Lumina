@@ -24,6 +24,7 @@ public sealed class AudioCue
 
     public AudioStatus Status { get; set; } = AudioStatus.NotLinked;
 
+    /// <summary>True only after the user has explicitly loaded the track this session.</summary>
     public bool IsPlayable => Status == AudioStatus.Ready && File.Exists(ResolvedPath ?? "");
 
     public static bool IsSupportedFile(string path) =>
@@ -47,6 +48,8 @@ public sealed class AudioCue
 public enum AudioStatus
 {
     NotLinked,
+    /// <summary>Path remembered in the sidecar; the decoder is not open until the user loads it.</summary>
+    Known,
     MissingFile,
     Ready
 }

@@ -74,9 +74,13 @@ public static class MambaShowReader
             SourcePath = path,
             Kind = ShowKind.MambaShow,
             Frames = frames,
-            Audio = AudioLocator.Locate(path, mentionedAudio)
+            Audio = new AudioCue()
         };
         show.Warnings.AddRange(warnings);
+        if (mentionedAudio.Length > 0)
+        {
+            show.Warnings.Add("Une piste audio est citée dans le show — chargez-la manuellement (Audio…).");
+        }
         var pattern = show.Library.Add(title, frames, path);
         if (scenes.Length > 0)
         {

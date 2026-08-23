@@ -6,6 +6,34 @@ namespace Lumina.Core;
 /// </summary>
 public static class AudioLocator
 {
+    /// <summary>
+    /// Reads a previously saved link from the sidecar without scanning the folder
+    /// and without opening the decoder (status <see cref="AudioStatus.Known"/>).
+    /// </summary>
+    public static AudioCue FromSidecar(string showPath)
+    {
+        var cue = new AudioCue();
+        var sidecar = LuminaSidecar.TryLoad(showPath);
+        if (sidecar?.AudioPath is not { Length: > 0 } linked) return cue;
+
+        var folder = Path.GetDirectoryName(showPath) ?? ".";
+        cue.LinkedPath = linked;
+        cue.Offset = TimeSpan.FromMilliseconds(sidecar.AudioOffsetMs);
+        cue.Volume = sidecar.Volume;
+        var resolved = Resolve(folder, linked);
+        if (File.Exists(resolved))
+        {
+            cue.ResolvedPath = resolved;
+            cue.Status = AudioStatus.Known;
+        }
+        else
+        {
+            cue.Status = AudioStatus.MissingFile;
+        }
+
+        return cue;
+    }
+
     public static AudioCue Locate(string showPath, IEnumerable<string>? mentionedNames = null)
     {
         var folder = Path.GetDirectoryName(showPath) ?? ".";

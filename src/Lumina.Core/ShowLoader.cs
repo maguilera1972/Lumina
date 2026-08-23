@@ -60,7 +60,7 @@ public static class ShowLoader
             SourcePath = path,
             Kind = ShowKind.LuminaShow,
             Frames = [],
-            Audio = AudioLocator.Locate(path)
+            Audio = new AudioCue()
         };
         LuminaSidecar.ApplyTo(show);
         EnsureLibrary(show);
@@ -102,7 +102,7 @@ public static class ShowLoader
             SourcePath = sourcePath,
             Kind = kind,
             Frames = frames,
-            Audio = sourcePath is null ? new AudioCue() : AudioLocator.Locate(sourcePath)
+            Audio = new AudioCue()
         };
         var pattern = show.Library.Add(title, frames, sourcePath);
         show.Timeline.PlaceClip(pattern, TimeSpan.Zero, length);

@@ -1,0 +1,24 @@
+<Window x:Class="Lumina.App.LaserStageWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Lumina.App"
+        Title="Lumina — aperçu laser"
+        Height="720" Width="720"
+        MinHeight="360" MinWidth="360"
+        Background="{StaticResource BoothBg}"
+        Foreground="{StaticResource BoothText}"
+        Icon="pack://application:,,,/Assets/lumina-icon.png">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Background="{StaticResource BoothPanel}" Padding="10,8" Margin="8,8,8,0" CornerRadius="12">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+          <CheckBox x:Name="StayOnTopBox" Content="Au premier plan" Click="StayOnTop_Changed" Margin="0,0,12,0" VerticalAlignment="Center"/>
+          <Button Content="Renvoyer à la console" Click="Dock_Click" Padding="10,6"/>
+        </StackPanel>
+        <TextBlock Text="Aperçu laser — déplacez cette fenêtre sur un second écran si besoin. Échap = arrêt d’urgence."
+                   TextWrapping="Wrap" Foreground="{StaticResource BoothMuted}" VerticalAlignment="Center"/>
+      </DockPanel>
+    </Border>
+    <local:LaserPreview x:Name="StagePreview" Margin="8"/>
+  </DockPanel>
+</Window>

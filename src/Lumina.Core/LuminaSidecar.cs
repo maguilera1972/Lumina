@@ -98,6 +98,16 @@ public sealed class LuminaSidecar
             show.Timeline.ReplaceAll(sidecar.Scenes.Select(s => s.ToScene()));
         }
 
+        var remembered = AudioLocator.FromSidecar(show.SourcePath);
+        if (remembered.Status != AudioStatus.NotLinked)
+        {
+            show.Audio.LinkedPath = remembered.LinkedPath;
+            show.Audio.ResolvedPath = remembered.ResolvedPath;
+            show.Audio.Offset = remembered.Offset;
+            show.Audio.Volume = remembered.Volume;
+            show.Audio.Status = remembered.Status;
+        }
+
         if (sidecar.Colors is not null)
         {
             show.Colors = sidecar.Colors;

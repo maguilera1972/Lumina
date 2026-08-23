@@ -47,22 +47,24 @@ Dans **Palette couleurs**, section **ESPACE DE PROJECTION** : largeur, hauteur, 
 
 ## Vérifier le synchro audio / laser
 
-1. Ouvrir le show (ou un `.ild`)
-2. **Charger l’audio** (MP3) — ou poser `NomDuShow.mp3` à côté du fichier
+1. Ouvrir le show (ou un `.ild`) — **sans** charger l’audio
+2. **Charger l’audio** manuellement (menu Fichier, bouton **Audio…**, ou glisser un MP3/WAV). Un fichier à côté du show n’est **pas** ouvert tout seul.
 3. Rester en **LASER OFF — prévisualisation**
-4. Lecture : la forme d’onde, la timeline et l’aperçu laser avancent ensemble
+4. Lecture : la forme d’onde, la timeline et l’aperçu laser avancent ensemble, à la **vitesse native** du fichier
 5. Cliquer la forme d’onde ou la timeline pour se caler sur un passage
 6. Ajuster les scènes (début, durée, frames), puis **Enregistrer la timeline**
 
+Menu **Affichage** : aperçu laser dans la console, ou dans une **fenêtre séparée** (second écran).
+
 Si les durées audio et laser divergent de plus de 0,5 s, un message l’indique à droite de l’aperçu.
 
-## Audio sans fichier pour l’instant
+## Audio (chargement manuel)
 
-Les MP3 peuvent arriver plus tard :
+Ouvrir un show **ne lance jamais** la piste. Pour écouter et caler :
 
-1. Même dossier, même nom : `Tonight.xrs` + `Tonight.mp3`
-2. Un seul MP3 dans le dossier
-3. Bouton **Charger l’audio…** → sidecar `Tonight.lumina.json`
+1. Bouton **Audio…** (ou Fichier → Charger l’audio, ou glisser un MP3/WAV)
+2. La lecture utilise WASAPI (vitesse et hauteur du fichier, sans rééchantillonnage agressif)
+3. Un lien déjà enregistré dans `*.lumina.json` est **mémorisé** (« piste connue ») mais reste à charger à la main
 
 ## PC dédié Windows 11
 
