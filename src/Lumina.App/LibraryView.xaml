@@ -1,0 +1,29 @@
+<UserControl x:Class="Lumina.App.LibraryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Lumina.App">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="220"/>
+    </Grid.ColumnDefinitions>
+    <DockPanel Margin="0,0,8,0">
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+        <TextBlock Text="BIBLIOTHÈQUE DE MOTIFS" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button Content="Importer ILDA / FRA…" Click="Import_Click" Padding="8,4" Margin="0,0,8,0"/>
+          <Button Content="Placer à la tête" Click="Place_Click" Padding="8,4"/>
+        </StackPanel>
+      </DockPanel>
+      <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,8"
+                 Text="Cliquez un motif pour l’aperçu. Double-clic (ou Placer) l’ajoute sur la timeline à la tête de lecture."/>
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <WrapPanel x:Name="PadHost"/>
+      </ScrollViewer>
+    </DockPanel>
+    <DockPanel Grid.Column="1">
+      <TextBlock DockPanel.Dock="Top" x:Name="PadLabel" Text="Aucun motif" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,8"/>
+      <local:LaserPreview x:Name="PadPreview"/>
+    </DockPanel>
+  </Grid>
+</UserControl>

@@ -1,0 +1,28 @@
+<Window x:Class="Lumina.App.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Lumina"
+        Width="760" Height="760"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/Assets/lumina-icon.png"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+  <Border x:Name="Chrome"
+          CornerRadius="20"
+          BorderBrush="#6600E5FF"
+          BorderThickness="1"
+          Background="#070B12"
+          Padding="18">
+    <Image Source="pack://application:,,,/Assets/splash.jpg"
+           Stretch="Uniform"
+           HorizontalAlignment="Center"
+           VerticalAlignment="Center"
+           RenderOptions.BitmapScalingMode="HighQuality"/>
+  </Border>
+</Window>

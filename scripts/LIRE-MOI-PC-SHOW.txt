@@ -1,0 +1,20 @@
+Lumina — PC de show Windows 11
+==============================
+
+Pour lancer le logiciel :
+  1. Copiez tout ce dossier sur le PC (cle USB, reseau, etc.).
+  2. Double-cliquez sur Lumina.exe
+     (ou sur « Lancer Lumina.cmd » si Windows masque les .exe)
+
+Vous n'avez PAS besoin de :
+  - PowerShell
+  - .NET SDK
+  - Visual Studio
+  - une connexion Internet
+
+Au premier lancement, Windows peut afficher SmartScreen
+(« Windows a protege votre PC »). Choisissez Informations complementaires
+puis Executer quand meme. C'est normal tant que l'exe n'est pas signe.
+
+Les shows (.ild, .mrs, …), les MP3 et les fichiers .lumina.json
+se copient a cote, ou s'ouvrent depuis le menu Fichier.

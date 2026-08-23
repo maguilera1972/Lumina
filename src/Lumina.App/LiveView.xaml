@@ -1,0 +1,55 @@
+<UserControl x:Class="Lumina.App.LiveView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Lumina.App"
+             Focusable="True">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="320"/>
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="240"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <local:LaserPreview x:Name="LivePreview" Grid.Column="0" Margin="0,0,8,8"/>
+
+    <Border Grid.Column="1" Background="{DynamicResource BoothPanel}" Padding="12" Margin="0,0,0,8" CornerRadius="14">
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <TextBlock Text="MODE LIVE MIDI" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,10"
+                     Text="Clavier MIDI, pad ou contrôleur : les notes déclenchent les motifs de la bibliothèque, les CC règlent les effets."/>
+
+          <TextBlock Text="Entrée MIDI" Foreground="{DynamicResource BoothMuted}"/>
+          <ComboBox x:Name="DeviceBox" Margin="0,4,0,8"/>
+          <WrapPanel Margin="0,0,0,8">
+            <Button Content="Actualiser" Click="Refresh_Click" Padding="8,4" Margin="0,0,8,0"/>
+            <Button x:Name="OpenMidiButton" Content="Ouvrir" Click="OpenMidi_Click" Padding="8,4"/>
+          </WrapPanel>
+          <CheckBox x:Name="LatchBox" Content="Latch (note = bascule)" Foreground="#E8EDF5" Margin="0,0,0,8"
+                    Checked="Latch_Changed" Unchecked="Latch_Changed"/>
+          <TextBlock x:Name="MidiStatus" Text="Aucun périphérique ouvert." TextWrapping="Wrap" Margin="0,0,0,10"/>
+
+          <TextBlock Text="Apprentissage" Foreground="{DynamicResource BoothMuted}"/>
+          <Button Content="MIDI Learn sur le pad sélectionné" Click="LearnNote_Click" Padding="8,4" Margin="0,4,0,8"/>
+          <ComboBox x:Name="LearnCcBox" Margin="0,0,0,6"/>
+          <Button Content="MIDI Learn CC → paramètre" Click="LearnCc_Click" Padding="8,4" Margin="0,0,0,10"/>
+
+          <TextBlock Text="Clavier ordinateur" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,4"/>
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" FontSize="12"
+                     Text="Touches 1–8 et A–L : pads 1–20. Échap : coupure."/>
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+
+    <DockPanel Grid.Row="1" Grid.ColumnSpan="2">
+      <TextBlock DockPanel.Dock="Top" x:Name="LibraryHint" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,8"
+                 Text="Importez des ILDA (onglet Contenu ILDA ou Ouvrir un show) : ils deviennent des pads live."/>
+      <ScrollViewer>
+        <UniformGrid x:Name="PadGrid" Columns="8"/>
+      </ScrollViewer>
+    </DockPanel>
+  </Grid>
+</UserControl>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>ILDA / Mamba show model, parsers, and playback clock for Lumina.</Description>
+  </PropertyGroup>
+</Project>

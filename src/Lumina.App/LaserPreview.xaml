@@ -1,0 +1,19 @@
+<UserControl x:Class="Lumina.App.LaserPreview"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Border Background="#070B12" BorderBrush="#3AA8B8" BorderThickness="1" CornerRadius="14" ClipToBounds="True">
+    <Grid Margin="10">
+      <Canvas x:Name="DrawCanvas" ClipToBounds="True" SizeChanged="DrawCanvas_SizeChanged"/>
+      <TextBlock x:Name="HintText"
+                 Text="Prévisualisation&#x0a;projecteur éteint"
+                 Foreground="{DynamicResource BoothMuted}"
+                 FontSize="12"
+                 TextAlignment="Center"
+                 TextWrapping="Wrap"
+                 HorizontalAlignment="Stretch"
+                 VerticalAlignment="Center"
+                 Margin="4"
+                 IsHitTestVisible="False"/>
+    </Grid>
+  </Border>
+</UserControl>
