@@ -20,6 +20,7 @@ La USB-Box est dans un panneau replié « facultatif ». Le projecteur reste ét
 - Forme d’onde MP3, tête de lecture commune, clic pour caler
 - Timeline éditable (scènes, durée, plage de frames) enregistrée dans `*.lumina.json`
 - Onglet **Contenu ILDA** : liste des frames, points, format, aperçu image par image
+- Bibliothèque ILDA visuelle : cartes de motifs, aperçu direct, et fenêtre séparée possible pendant l’édition
 - Onglet **Palette couleurs** : projecteur **RGB** ou **RGY**, conversion ILDA, étalonnage par diode, motifs test
 - Import Mamba (`.xrs` / `.xmb` / `.mrs` / `.shw`) + `.ild` + `.fra`
 - Association MP3 plus tard (le CD Mamba n’embarque souvent pas la musique)
@@ -56,6 +57,8 @@ Dans **Palette couleurs**, section **ESPACE DE PROJECTION** : largeur, hauteur, 
 
 Menu **Affichage** : aperçu laser dans la console, ou dans une **fenêtre séparée** (second écran).
 
+La **bibliothèque ILDA** peut aussi être ouverte dans une **fenêtre séparée** pour parcourir les motifs comme une banque de pads graphiques pendant l’édition.
+
 Si les durées audio et laser divergent de plus de 0,5 s, un message l’indique à droite de l’aperçu.
 
 ## Audio (chargement manuel)
@@ -65,6 +68,12 @@ Ouvrir un show **ne lance jamais** la piste. Pour écouter et caler :
 1. Bouton **Audio…** (ou Fichier → Charger l’audio, ou glisser un MP3/WAV)
 2. La lecture utilise WASAPI (vitesse et hauteur du fichier, sans rééchantillonnage agressif)
 3. Un lien déjà enregistré dans `*.lumina.json` est **mémorisé** (« piste connue ») mais reste à charger à la main
+
+## Sorties DAC et feuille de route Live
+
+- Sorties visibles dans Lumina : **Prévisualisation**, **MediaLas USB-Box**, **Pangolin FB3 (USB)**, **Pangolin FB4 (réseau)**, **DAC ouvert / bridge réseau**
+- FB3 / FB4 / DAC ouvert sont pour l’instant des **backends préparés** dans l’architecture ; le protocole réel reste à brancher selon le SDK ou le bridge choisi
+- La banque de pads ILDA graphiques est pensée pour être **réutilisable en mode Live**, y compris plus tard via une **surface iPad / OSC**
 
 ## PC dédié Windows 11
 

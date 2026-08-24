@@ -37,7 +37,15 @@ public partial class ColorPaletteView : UserControl
         _sample = sampleFrame;
         _suppress = true;
         ProjectorBox.SelectedIndex = profile.IsRgy ? 1 : 0;
-        DriverBox.SelectedIndex = profile.Driver == DacDriverKind.Preview ? 0 : 1;
+        DriverBox.SelectedIndex = profile.Driver switch
+        {
+            DacDriverKind.Preview => 0,
+            DacDriverKind.MediaLasUsbBox => 1,
+            DacDriverKind.Fb3Usb => 2,
+            DacDriverKind.Fb4Network => 3,
+            DacDriverKind.OpenDacBridge => 4,
+            _ => 1
+        };
         RoutingBox.SelectedIndex = profile.YellowRouting == IldaYellowRouting.MixOnRedGreen ? 1 : 0;
         EnabledBox.IsChecked = profile.Enabled;
         MasterGain.Value = profile.MasterBrightness;
@@ -248,7 +256,14 @@ public partial class ColorPaletteView : UserControl
         if (ProjectorBox is null || DriverBox is null || RoutingBox is null || ModeBox is null) return;
         if (AlignWidth is null || ProfileNameBox is null) return;
         var projector = ProjectorBox.SelectedIndex == 1 ? ProjectorColorSet.Rgy : ProjectorColorSet.Rgb;
-        _profile.Driver = DriverBox.SelectedIndex == 0 ? DacDriverKind.Preview : DacDriverKind.MediaLasUsbBox;
+        _profile.Driver = DriverBox.SelectedIndex switch
+        {
+            0 => DacDriverKind.Preview,
+            2 => DacDriverKind.Fb3Usb,
+            3 => DacDriverKind.Fb4Network,
+            4 => DacDriverKind.OpenDacBridge,
+            _ => DacDriverKind.MediaLasUsbBox
+        };
         _profile.ApplyProjector(projector);
         if (_profile.IsRgy && _profile.Driver == DacDriverKind.MediaLasUsbBox)
         {

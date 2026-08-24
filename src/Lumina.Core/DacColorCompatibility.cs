@@ -8,6 +8,15 @@ public static class DacColorCompatibility
 {
     public const string UsbBoxDriverName = "MediaLas USB-Box (FTDI D2XX, analogique ILDA)";
 
+    public static string DriverLabel(DacDriverKind driver) => driver switch
+    {
+        DacDriverKind.MediaLasUsbBox => UsbBoxDriverName,
+        DacDriverKind.Fb3Usb => "Pangolin FB3 (USB)",
+        DacDriverKind.Fb4Network => "Pangolin FB4 (réseau)",
+        DacDriverKind.OpenDacBridge => "DAC ouvert / bridge réseau",
+        _ => "Prévisualisation écran"
+    };
+
     /// <summary>ILDA / USB-Box analogue: pin 5 red, pin 6 green, pin 7 blue.</summary>
     public static string AnalogMapSummary(ColorConversionProfile profile)
     {
@@ -40,6 +49,21 @@ public static class DacColorCompatibility
         if (profile.Projector == ProjectorColorSet.Rgy && profile.UseBlue)
         {
             list.Add("Profil RGY : pas de diode bleue. Le bleu source est replié vers le jaune.");
+        }
+
+        if (profile.Driver == DacDriverKind.Fb3Usb)
+        {
+            list.Add("FB3 USB visible dans Lumina, mais le backend SDK/bridge reste à brancher.");
+        }
+
+        if (profile.Driver == DacDriverKind.Fb4Network)
+        {
+            list.Add("FB4 réseau prévu pour un backend OSC / bridge ; pilote non finalisé pour l'instant.");
+        }
+
+        if (profile.Driver == DacDriverKind.OpenDacBridge)
+        {
+            list.Add("Le mode DAC ouvert attend un bridge ou un pilote additionnel compatible.");
         }
 
         return list;

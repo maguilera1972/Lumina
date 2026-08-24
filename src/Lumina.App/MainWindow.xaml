@@ -33,6 +33,8 @@
       <MenuItem Header="_Affichage">
         <MenuItem x:Name="PreviewConsoleItem" Header="Aperçu laser dans la _console" IsCheckable="True" IsChecked="True" Click="PreviewConsole_Click"/>
         <MenuItem x:Name="PreviewWindowItem" Header="Aperçu laser dans une _fenêtre séparée" IsCheckable="True" Click="PreviewWindow_Click"/>
+        <Separator/>
+        <MenuItem Header="Bibliothèque ILDA en _fenêtre séparée" Click="LibraryWindow_Click"/>
       </MenuItem>
     </Menu>
 

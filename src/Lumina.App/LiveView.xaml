@@ -21,6 +21,8 @@
           <TextBlock Text="MODE LIVE MIDI" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
           <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,10"
                      Text="Clavier MIDI, pad ou contrôleur : les notes déclenchent les motifs de la bibliothèque, les CC règlent les effets."/>
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothAccent}" FontSize="12" Margin="0,0,0,10"
+                     Text="Préparation du mode Live distant : la même banque de pads ILDA est pensée pour une future surface iPad / OSC."/>
 
           <TextBlock Text="Entrée MIDI" Foreground="{DynamicResource BoothMuted}"/>
           <ComboBox x:Name="DeviceBox" Margin="0,4,0,8"/>

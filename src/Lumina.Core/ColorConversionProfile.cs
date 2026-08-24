@@ -34,7 +34,10 @@ public enum DacDriverKind
 {
     Preview = 0,
     /// <summary>FTDI D2XX MediaLas USB-Box: three analog ILDA colour channels (R, G, B).</summary>
-    MediaLasUsbBox = 1
+    MediaLasUsbBox = 1,
+    Fb3Usb = 2,
+    Fb4Network = 3,
+    OpenDacBridge = 4
 }
 
 public sealed class PaletteEntry

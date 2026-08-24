@@ -1,10 +1,14 @@
+﻿using Lumina.Core;
+
 namespace Lumina.Dac;
 
 public readonly record struct DacPoint(short X, short Y, byte R, byte G, byte B, bool Blanked);
 
 public interface ILaserDac : IDisposable
 {
+    DacDriverKind DriverKind { get; }
     string DisplayName { get; }
+    DacCapabilities Capabilities { get; }
     bool IsConnected { get; }
     void Connect();
     void WriteFrame(IReadOnlyList<DacPoint> points, int pointRate);

@@ -22,6 +22,9 @@
           <ComboBox x:Name="DriverBox" Margin="0,0,0,4" SelectionChanged="Profile_Changed">
             <ComboBoxItem Content="Prévisualisation écran"/>
             <ComboBoxItem Content="MediaLas USB-Box (FTDI ILDA)"/>
+            <ComboBoxItem Content="Pangolin FB3 (USB)"/>
+            <ComboBoxItem Content="Pangolin FB4 (réseau)"/>
+            <ComboBoxItem Content="DAC ouvert / bridge réseau"/>
           </ComboBox>
           <TextBlock x:Name="AnalogHint" TextWrapping="Wrap" Foreground="{DynamicResource BoothAccent}" FontSize="12" Margin="0,0,0,8"
                      Text="RGB · broche 5 = rouge, 6 = vert, 7 = bleu."/>

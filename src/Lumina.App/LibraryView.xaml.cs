@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using Lumina.Core;
@@ -12,10 +12,12 @@ public partial class LibraryView : UserControl
     private ColorConversionProfile? _colors;
 
     public event Action? ImportClicked;
+    public event Action? DetachRequested;
     public event Action<PatternItem>? PlaceRequested;
     public event Action<PatternItem>? PatternSelected;
 
     public PatternItem? SelectedPattern => _selected;
+    public string? SelectedPatternId => _selected?.Id;
 
     public LibraryView()
     {
@@ -30,6 +32,10 @@ public partial class LibraryView : UserControl
         {
             _selected = show?.Library.Items.FirstOrDefault();
         }
+        else if (_selected is null)
+        {
+            _selected = show?.Library.Items.FirstOrDefault();
+        }
 
         Rebuild();
         PushPreview();
@@ -38,12 +44,22 @@ public partial class LibraryView : UserControl
     public void SetColors(ColorConversionProfile? colors)
     {
         _colors = colors;
+        Rebuild();
         PushPreview();
+    }
+
+    public void SelectById(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || _show is null) return;
+        var pattern = _show.Library.Get(id);
+        if (pattern is not null) Select(pattern, propagate: false);
     }
 
     public void PromptImport() => ImportClicked?.Invoke();
 
     private void Import_Click(object sender, RoutedEventArgs e) => ImportClicked?.Invoke();
+
+    private void Detach_Click(object sender, RoutedEventArgs e) => DetachRequested?.Invoke();
 
     private void Place_Click(object sender, RoutedEventArgs e)
     {
@@ -65,35 +81,77 @@ public partial class LibraryView : UserControl
             return;
         }
 
-        foreach (var item in _show.Library.Items)
+        for (var i = 0; i < _show.Library.Items.Count; i++)
         {
-            var pattern = item;
-            var selected = ReferenceEquals(pattern, _selected);
-            var btn = new Button
-            {
-                Content = $"{pattern.Name}\n{pattern.Frames.Count} fr.",
-                Width = 108,
-                Height = 56,
-                Margin = new Thickness(0, 0, 8, 8),
-                Padding = new Thickness(6),
-                Tag = pattern,
-                BorderBrush = selected
-                    ? (TryFindResource("BoothAccent") as Brush ?? Brushes.Cyan)
-                    : Brushes.Transparent,
-                BorderThickness = new Thickness(2)
-            };
-            btn.Click += (_, _) => Select(pattern);
-            btn.MouseDoubleClick += (_, _) => PlaceRequested?.Invoke(pattern);
-            PadHost.Children.Add(btn);
+            var pattern = _show.Library.Items[i];
+            var tile = BuildTile(pattern, i, ReferenceEquals(pattern, _selected));
+            PadHost.Children.Add(tile);
         }
     }
 
-    public void Select(PatternItem pattern)
+    private FrameworkElement BuildTile(PatternItem pattern, int index, bool selected)
+    {
+        var visual = LaserColorConverter.Apply(pattern.FrameAtProgress(pattern.Frames.Count > 1 ? 0.18 : 0) ?? pattern.Frames.FirstOrDefault(), _colors);
+        var preview = new LaserPreview
+        {
+            Width = 120,
+            Height = 84,
+            Margin = new Thickness(0, 0, 0, 6)
+        };
+        preview.ShowFrame(visual);
+
+        var title = new TextBlock
+        {
+            Text = pattern.Name,
+            TextWrapping = TextWrapping.Wrap,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 4),
+            MaxHeight = 34
+        };
+
+        var meta = new TextBlock
+        {
+            Text = $"{pattern.Frames.Count} frame(s)  ·  pad {index + 1}",
+            Foreground = TryFindResource("BoothMuted") as Brush ?? Brushes.LightGray,
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap
+        };
+
+        var stack = new StackPanel();
+        stack.Children.Add(preview);
+        stack.Children.Add(title);
+        stack.Children.Add(meta);
+
+        var btn = new Button
+        {
+            Width = 150,
+            Height = 152,
+            Margin = new Thickness(0, 0, 8, 8),
+            Padding = new Thickness(8),
+            Content = stack,
+            Background = TryFindResource("BoothPanel") as Brush,
+            BorderBrush = selected
+                ? (TryFindResource("BoothAccent") as Brush ?? Brushes.Cyan)
+                : (TryFindResource("BoothEdge") as Brush ?? Brushes.Transparent),
+            BorderThickness = new Thickness(selected ? 2 : 1),
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Stretch,
+            Tag = pattern,
+            ToolTip = pattern.SourcePath is null ? pattern.Name : $"{pattern.Name}\n{pattern.SourcePath}"
+        };
+        btn.Click += (_, _) => Select(pattern);
+        btn.MouseDoubleClick += (_, _) => PlaceRequested?.Invoke(pattern);
+        return btn;
+    }
+
+    public void Select(PatternItem pattern) => Select(pattern, propagate: true);
+
+    private void Select(PatternItem pattern, bool propagate)
     {
         _selected = pattern;
         Rebuild();
         PushPreview();
-        PatternSelected?.Invoke(pattern);
+        if (propagate) PatternSelected?.Invoke(pattern);
     }
 
     private void PushPreview()
@@ -106,6 +164,7 @@ public partial class LibraryView : UserControl
         }
 
         PadLabel.Text = $"{_selected.Name}  ({_selected.Frames.Count} frame(s))";
-        PadPreview.ShowFrame(LaserColorConverter.Apply(_selected.Frames[0], _colors));
+        var frame = _selected.FrameAtProgress(_selected.Frames.Count > 1 ? 0.18 : 0) ?? _selected.Frames[0];
+        PadPreview.ShowFrame(LaserColorConverter.Apply(frame, _colors));
     }
 }

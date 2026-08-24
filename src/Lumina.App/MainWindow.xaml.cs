@@ -11,7 +11,7 @@ namespace Lumina.App;
 
 public partial class MainWindow : Window
 {
-    private readonly PreviewDac _dac = new();
+    private ILaserDac _dac = DacRegistry.Create(DacDriverKind.Preview);
     private readonly ShowClock _clock = new();
     private readonly ShowAudioPlayer _audio;
     private readonly DispatcherTimer _timer;
@@ -22,8 +22,10 @@ public partial class MainWindow : Window
     private LaserFrame? _holdOutput;
     private LaserFrame? _lastVisual;
     private LaserStageWindow? _stageWindow;
+    private PatternBrowserWindow? _libraryWindow;
     private bool _previewDetached;
     private bool _closingStage;
+    private bool _closingLibrary;
 
     public MainWindow()
     {
@@ -51,6 +53,8 @@ public partial class MainWindow : Window
         PaletteView.Bind(ColorConversionProfile.CreateRgb(), null);
         Library.PlaceRequested += PlacePattern;
         Library.ImportClicked += ImportIldaWithPicker;
+        Library.PatternSelected += OnLibraryPatternSelected;
+        Library.DetachRequested += OpenLibraryWindow;
         ClipEditor.EffectsChanged += OnClipEffectsChanged;
         ClipEditor.DeleteRequested += DeleteClip;
         ShowEmptyState(true);
@@ -58,6 +62,7 @@ public partial class MainWindow : Window
         {
             _timer.Stop();
             CloseStageWindow();
+            CloseLibraryWindow();
             _audio.Dispose();
             _dac.Dispose();
         };
@@ -83,6 +88,7 @@ public partial class MainWindow : Window
         IldaView.Clear();
         PaletteView.Bind(ColorConversionProfile.CreateRgb(), null);
         Library.Bind(null);
+        _libraryWindow?.Bind(null, null);
         ClipEditor.Bind(null);
         Timeline.Bind(null, TimeSpan.FromSeconds(10));
         Waveform.Clear("Chargez un MP3 ou un WAV pour voir la forme d’onde, le rythme et caler le laser.");
@@ -99,8 +105,10 @@ public partial class MainWindow : Window
     {
         ResetSession();
         _show = ShowLoader.CreateUntitled();
+        EnsureDacDriver(_show.Colors);
         PaletteView.Bind(_show.Colors, null);
         Library.Bind(_show, _show.Colors);
+        _libraryWindow?.Bind(_show, _show.Colors);
         ClipEditor.Bind(null);
         BindLoadedShow("Nouveau show vide — aucune trace de l’ancien projet.");
     }
@@ -140,9 +148,11 @@ public partial class MainWindow : Window
     {
         ResetSession();
         _show = ShowLoader.Open(path);
+        EnsureDacDriver(_show.Colors);
         IldaView.Load(_show.Title, _show.Frames);
         PaletteView.Bind(_show.Colors, _show.Frames.Count > 0 ? _show.Frames[0] : null);
         Library.Bind(_show, _show.Colors);
+        _libraryWindow?.Bind(_show, _show.Colors);
         ClipEditor.Bind(_show.Timeline.Clips.FirstOrDefault());
         if (_show.Timeline.Clips.Count > 0) Timeline.SelectClip(_show.Timeline.Clips[0]);
         var warn = _show.Warnings.Count == 0 ? "" : " " + string.Join(" ", _show.Warnings);
@@ -260,6 +270,8 @@ public partial class MainWindow : Window
         PlacePatterns(added);
         Library.Bind(_show, _show.Colors);
         Library.Select(added[^1]);
+        _libraryWindow?.Bind(_show, _show.Colors);
+        _libraryWindow?.SelectById(added[^1].Id);
         IldaView.Load(_show.Title, _show.Frames);
         AutoSave();
         StatusText.Text = pick.AsAnimation
@@ -422,11 +434,13 @@ public partial class MainWindow : Window
         if (_show is not null)
         {
             _show.Colors = PaletteView.Profile;
+            EnsureDacDriver(_show.Colors);
             AutoSave();
         }
 
         RenderAt(_clock.Position);
         Library.SetColors(_show?.Colors);
+        _libraryWindow?.SetColors(_show?.Colors);
         UpdateLaserArmUi();
     }
 
@@ -441,6 +455,11 @@ public partial class MainWindow : Window
         AutoSave();
         RenderAt(start);
         StatusText.Text = $"Clip « {pattern.Name} » placé à {FormatTime(start)}.";
+    }
+
+    private void OnLibraryPatternSelected(PatternItem pattern)
+    {
+        _libraryWindow?.SelectById(pattern.Id);
     }
 
     private void OnClipEffectsChanged()
@@ -724,6 +743,20 @@ public partial class MainWindow : Window
     {
         if (!_laserArmed)
         {
+            var colors = _show?.Colors ?? PaletteView.Profile;
+            try
+            {
+                EnsureDacDriver(colors);
+                if (!_dac.IsConnected) _dac.Connect();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Sortie projecteur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                StatusText.Text = ex.Message;
+                UpdateLaserArmUi();
+                return;
+            }
+
             var confirm = MessageBox.Show(
                 this,
                 "Activer la sortie projecteur ? La prévisualisation à l’écran reste disponible. Un arrêt d’urgence (Échap) recoupe le laser.",
@@ -754,10 +787,11 @@ public partial class MainWindow : Window
     private void UpdateLaserArmUi()
     {
         LaserArmButton.Content = _laserArmed ? "LASER ON" : "LASER OFF — prévisualisation";
-        var map = (_show?.Colors ?? PaletteView.Profile).AnalogMapSummary();
+        var colors = _show?.Colors ?? PaletteView.Profile;
+        var map = colors.AnalogMapSummary();
         DacText.Text = _laserArmed
-            ? "Sortie projecteur : armée (USB-Box) · " + map
-            : "Sortie projecteur : coupée · " + map;
+            ? $"Sortie active : {_dac.DisplayName} · {map}"
+            : $"Sortie prête : {_dac.DisplayName} · {map}";
     }
 
     private void SeekTo(TimeSpan time)
@@ -878,7 +912,63 @@ public partial class MainWindow : Window
 
     private void PreviewWindow_Click(object sender, RoutedEventArgs e) => SetPreviewDetached(true);
 
+    private void LibraryWindow_Click(object sender, RoutedEventArgs e) => OpenLibraryWindow();
+
     public void RequestEmergencyStop() => EmergencyStop();
+
+    private void OpenLibraryWindow()
+    {
+        if (_libraryWindow is not null)
+        {
+            _libraryWindow.Activate();
+            _libraryWindow.SelectById(Library.SelectedPatternId);
+            return;
+        }
+
+        _libraryWindow = new PatternBrowserWindow { Owner = this };
+        _libraryWindow.DockRequested += OnLibraryDockRequested;
+        _libraryWindow.ImportRequested += ImportIldaWithPicker;
+        _libraryWindow.PlaceRequested += PlacePattern;
+        _libraryWindow.PatternSelected += pattern => Library.SelectById(pattern.Id);
+        _libraryWindow.Bind(_show, _show?.Colors);
+        _libraryWindow.SelectById(Library.SelectedPatternId);
+        _libraryWindow.Show();
+    }
+
+    private void OnLibraryDockRequested()
+    {
+        if (_closingLibrary) return;
+        _libraryWindow = null;
+    }
+
+    private void CloseLibraryWindow()
+    {
+        if (_libraryWindow is null) return;
+        _closingLibrary = true;
+        _libraryWindow.DockRequested -= OnLibraryDockRequested;
+        var window = _libraryWindow;
+        _libraryWindow = null;
+        try { window.Close(); } catch { /* already closing */ }
+        _closingLibrary = false;
+    }
+
+    private void EnsureDacDriver(ColorConversionProfile profile)
+    {
+        if (_dac.DriverKind == profile.Driver) return;
+
+        var previous = _dac;
+        _dac = DacRegistry.Create(profile.Driver);
+        try
+        {
+            _dac.Connect();
+        }
+        catch
+        {
+            // Stubs may fail at connect time; keep the selected driver visible anyway.
+        }
+
+        try { previous.Dispose(); } catch { }
+    }
 
     private void SetPreviewDetached(bool detached)
     {
