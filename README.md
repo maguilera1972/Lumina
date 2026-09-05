@@ -12,6 +12,8 @@ Double-cliquez `Lumina.exe` : **aucune Box, aucun PowerShell, aucun SDK**. L’o
 4. **Prévisualiser** à l’écran (lecture / pause / stop, forme d’onde si MP3)
 5. **Enregistrer** le projet (Ctrl+S)
 
+L’onglet **Live** (banque de pads séparée, MIDI / iPad / OSC) est documenté plus bas.
+
 La USB-Box est dans un panneau replié « facultatif ». Le projecteur reste éteint tant que vous n’armez pas **LASER ON**.
 
 ## Ce qui fonctionne déjà
@@ -24,6 +26,7 @@ La USB-Box est dans un panneau replié « facultatif ». Le projecteur reste ét
 - Onglet **Palette couleurs** : projecteur **RGB** ou **RGY**, conversion ILDA, étalonnage par diode, motifs test
 - Import Mamba (`.xrs` / `.xmb` / `.mrs` / `.shw`) + `.ild` + `.fra`
 - Association MP3 plus tard (le CD Mamba n’embarque souvent pas la musique)
+- Onglet **Live** : banque de pads ILDA indépendante de l’Atelier, déclenchement clavier / MIDI / iPad (web + OSC)
 - Arrêt d’urgence : **Échap**
 - Paquet autonome pour un autre PC Windows 11
 
@@ -76,11 +79,56 @@ Ouvrir un show **ne lance jamais** la piste. Pour écouter et caler :
 2. La lecture utilise WASAPI (vitesse et hauteur du fichier, sans rééchantillonnage agressif)
 3. Un lien déjà enregistré dans `*.lumina.json` est **mémorisé** (« piste connue ») mais reste à charger à la main
 
-## Sorties DAC et feuille de route Live
+## Mode Live
 
-- Sorties visibles dans Lumina : **Prévisualisation**, **MediaLas USB-Box**, **Pangolin FB3 (USB)**, **Pangolin FB4 (réseau)**, **DAC ouvert / bridge réseau**
-- FB3 / FB4 / DAC ouvert sont pour l’instant des **backends préparés** dans l’architecture ; le protocole réel reste à brancher selon le SDK ou le bridge choisi
-- La banque de pads ILDA graphiques est pensée pour être **réutilisable en mode Live**, y compris plus tard via une **surface iPad / OSC**
+L’onglet **Live** est une surface de performance **séparée de l’Atelier** : ouvrir un show ou placer des clips sur la timeline **n’alimente pas** les pads Live. Inversement, vider la banque Live **ne modifie pas** le show Atelier.
+
+Quand l’onglet Live est actif, la projection / le feed DAC suit le moteur Live (pas la lecture Atelier).
+
+### Banque de pads
+
+1. **Charger ILDA / FRA…** — chaque fichier `.ild` ou `.fra` devient **un pad** (1 fichier = 1 touche)
+2. **Retirer le pad** / vider la banque
+3. Aperçu sur les tuiles (et sur la page web iPad)
+
+### Déclenchement
+
+| Source | Usage |
+|--------|--------|
+| Clavier | Touches **1–8** et **A–L** → pads 1–20 ; **Échap** = panic |
+| MIDI | Note On/Off et CC ; **MIDI Learn** sur le pad sélectionné |
+| Web iPad | Serveur HTTP local (port par défaut **8787**) — grille de pads + aperçus SVG + Panic |
+| OSC UDP | TouchOSC / Open Stage / OSC/PILOT (port par défaut **9000**) |
+
+### Serveur web (iPad / téléphone)
+
+Dans Live → section remote :
+
+1. Vérifier le port (8787) → **Démarrer**
+2. Ouvrir sur l’iPad l’URL affichée (`http://<IP-LAN>:8787/`) — bouton **Copier l’URL iPad**
+3. Appuyer / relâcher les pads ; **Panic** coupe la sortie
+
+Le serveur utilise un `TcpListener` (pas `HttpListener`) pour éviter les refus d’accès Windows fréquents sur ce poste.
+
+### OSC UDP
+
+Adresses reconnues :
+
+| Adresse | Effet |
+|---------|--------|
+| `/lumina/pad/N` | `1` = press, `0` = release (N = 1-based) |
+| `/lumina/pad/N/press` / `/release` | press / release explicites |
+| `/lumina/panic` | coupure |
+| `/lumina/note` | note + velocity (+ canal optionnel) |
+| `/lumina/cc` | CC + valeur |
+
+Détail layouts iPad (OSC/PILOT, Open Stage) : dossier [`extras/osc-pilot/`](extras/osc-pilot/README.md).
+
+### Sorties DAC (état actuel)
+
+- Sorties visibles : **Prévisualisation**, **MediaLas USB-Box**, **Pangolin FB3 (USB)**, **Pangolin FB4 (réseau)**, **DAC ouvert / bridge réseau**
+- FB3 / FB4 / DAC ouvert : **backends préparés** ; protocole réel encore à brancher
+- En mode Live armé, le feed suit le pad actif (sinon blanc / panic)
 
 ## PC dédié Windows 11
 
