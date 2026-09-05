@@ -18,11 +18,25 @@
     <Border Grid.Column="1" Background="{DynamicResource BoothPanel}" Padding="12" Margin="0,0,0,8" CornerRadius="14">
       <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
-          <TextBlock Text="MODE LIVE MIDI" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,8"/>
-          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,10"
-                     Text="Clavier MIDI, pad ou contrôleur : les notes déclenchent les motifs de la bibliothèque, les CC règlent les effets."/>
-          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothAccent}" FontSize="12" Margin="0,0,0,10"
-                     Text="Préparation du mode Live distant : la même banque de pads ILDA est pensée pour une future surface iPad / OSC."/>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <Image Source="pack://application:,,,/Assets/lumina-icon.png" Width="36" Height="36"
+                   Margin="0,0,10,0" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="MODE LIVE" FontWeight="SemiBold" FontSize="16"/>
+              <TextBlock Text="Banque ILDA indépendante" Foreground="{DynamicResource BoothMuted}" FontSize="11"/>
+            </StackPanel>
+          </StackPanel>
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothAccent}" FontSize="12" Margin="0,0,0,8"
+                     Text="Projection séparée de l’Atelier : chargez ici des fichiers ILDA individuels (1 fichier = 1 pad / touche). Un show ouvert dans l’Atelier n’affecte pas cette banque."/>
+
+          <TextBlock Text="Banque Live (ILDA)" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,4"/>
+          <WrapPanel Margin="0,0,0,6">
+            <Button Content="Charger ILDA / FRA…" Click="ImportIlda_Click" Padding="8,4" Margin="0,0,6,6"/>
+            <Button Content="Retirer le pad" Click="RemovePad_Click" Padding="8,4" Margin="0,0,6,6"/>
+            <Button Content="Vider la banque" Click="ClearBank_Click" Padding="8,4" Margin="0,0,0,6"/>
+          </WrapPanel>
+          <TextBlock x:Name="BankStatus" Text="0 fichier(s) dans la banque Live." Foreground="{DynamicResource BoothMuted}"
+                     FontSize="12" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
           <TextBlock Text="Entrée MIDI" Foreground="{DynamicResource BoothMuted}"/>
           <ComboBox x:Name="DeviceBox" Margin="0,4,0,8"/>
@@ -42,15 +56,59 @@
           <TextBlock Text="Clavier ordinateur" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,4"/>
           <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" FontSize="12"
                      Text="Touches 1–8 et A–L : pads 1–20. Échap : coupure."/>
+
+          <Separator Background="#1E3040" Margin="0,12,0,12"/>
+
+          <TextBlock Text="LIVE DISTANT (WEB)" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,6"/>
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" FontSize="12" Margin="0,0,0,6"
+                     Text="Ouvrez Safari/Chrome sur l'iPad (même Wi‑Fi ou partage Bluetooth PAN) et allez à l'URL ci‑dessous."/>
+
+          <TextBlock Text="IP de ce PC" Foreground="{DynamicResource BoothMuted}" FontSize="12"/>
+          <TextBlock x:Name="LocalIpText" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource BoothAccent}"
+                     TextWrapping="Wrap" Margin="0,2,0,4" Text="…"/>
+          <TextBlock x:Name="RemoteUrlHint" TextWrapping="Wrap" FontSize="12" Margin="0,0,0,8"
+                     Foreground="{DynamicResource BoothMuted}" Text="URL iPad : (démarrez le serveur)"/>
+          <Button Content="Actualiser l’IP" Click="RefreshIp_Click" Padding="8,4" Margin="0,0,0,10" HorizontalAlignment="Left"/>
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="Port" Foreground="{DynamicResource BoothMuted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <TextBox x:Name="RemotePortBox" Text="8787" Width="70" Background="#121A26" Foreground="{StaticResource BoothText}"
+                     BorderBrush="#3AA8B8" BorderThickness="1" Padding="6,4"/>
+            <Button Content="Démarrer" Click="StartRemote_Click" Padding="10,6" Margin="10,0,8,0"/>
+            <Button Content="Arrêter" Click="StopRemote_Click" Padding="10,6"/>
+          </StackPanel>
+
+          <TextBlock x:Name="RemoteStatus" Text="Serveur web : arrêté." Foreground="{DynamicResource BoothMuted}" FontSize="12" TextWrapping="Wrap"/>
+
+          <Button Content="Copier l’URL iPad" Click="CopyRemoteUrl_Click" Padding="10,6" Margin="0,10,0,10"/>
+
+          <Separator Background="#1E3040" Margin="0,4,0,12"/>
+
+          <TextBlock Text="OSC UDP (TouchOSC / iPad)" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,6"/>
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" FontSize="12" Margin="0,0,0,8"
+                     Text="Latence plus basse que le web. Adresses : /lumina/pad/N (1=press, 0=release), /lumina/pad/N/press, /lumina/panic"/>
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="Port OSC" Foreground="{DynamicResource BoothMuted}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <TextBox x:Name="OscPortBox" Text="9000" Width="70" Background="#121A26" Foreground="{StaticResource BoothText}"
+                     BorderBrush="#3AA8B8" BorderThickness="1" Padding="6,4"/>
+            <Button Content="Démarrer" Click="StartOsc_Click" Padding="10,6" Margin="10,0,8,0"/>
+            <Button Content="Arrêter" Click="StopOsc_Click" Padding="10,6"/>
+          </StackPanel>
+          <TextBlock x:Name="OscStatus" Text="OSC : arrêté." Foreground="{DynamicResource BoothMuted}" FontSize="12" TextWrapping="Wrap"/>
+          <TextBlock x:Name="OscHint" TextWrapping="Wrap" FontSize="12" Margin="0,6,0,0"
+                     Foreground="{DynamicResource BoothMuted}" Text=""/>
         </StackPanel>
       </ScrollViewer>
     </Border>
 
     <DockPanel Grid.Row="1" Grid.ColumnSpan="2">
-      <TextBlock DockPanel.Dock="Top" x:Name="LibraryHint" Foreground="{DynamicResource BoothMuted}" Margin="0,0,0,8"
-                 Text="Importez des ILDA (onglet Contenu ILDA ou Ouvrir un show) : ils deviennent des pads live."/>
-      <ScrollViewer>
-        <UniformGrid x:Name="PadGrid" Columns="8"/>
+      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+        <TextBlock x:Name="LibraryHint" Foreground="{DynamicResource BoothMuted}" VerticalAlignment="Center"
+                   Text="Chargez des fichiers .ild / .fra : chaque fichier devient un pad (touche / MIDI / iPad)."/>
+      </DockPanel>
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <WrapPanel x:Name="PadGrid"/>
       </ScrollViewer>
     </DockPanel>
   </Grid>

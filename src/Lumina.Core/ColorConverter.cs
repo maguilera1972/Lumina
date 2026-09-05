@@ -98,22 +98,24 @@ public static class LaserColorConverter
     {
         if (frame is null) return null;
         if (profile is null) return frame;
-        var points = new LaserPoint[frame.Points.Count];
-        for (var i = 0; i < frame.Points.Count; i++)
+
+        // Multi-world geometry first, then colour / diode mapping on the composed points.
+        var geometry = ProjectionComposer.Compose(frame, profile) ?? frame;
+        var points = new LaserPoint[geometry.Points.Count];
+        for (var i = 0; i < geometry.Points.Count; i++)
         {
-            var mapped = ProjectionMapper.Map(frame.Points[i], profile.Alignment ?? new ProjectionAlignment());
-            var diodes = ConvertDiodes(mapped, profile);
-            points[i] = Pack(mapped, diodes, profile, analogForDac);
+            var diodes = ConvertDiodes(geometry.Points[i], profile);
+            points[i] = Pack(geometry.Points[i], diodes, profile, analogForDac);
         }
 
         return new LaserFrame
         {
-            Name = frame.Name,
-            Company = frame.Company,
-            FrameNumber = frame.FrameNumber,
-            TotalFrames = frame.TotalFrames,
-            Projector = frame.Projector,
-            Format = frame.Format,
+            Name = geometry.Name,
+            Company = geometry.Company,
+            FrameNumber = geometry.FrameNumber,
+            TotalFrames = geometry.TotalFrames,
+            Projector = geometry.Projector,
+            Format = geometry.Format,
             Points = points
         };
     }

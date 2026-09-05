@@ -81,7 +81,8 @@ public static class MambaShowReader
         {
             show.Warnings.Add("Une piste audio est citée dans le show — chargez-la manuellement (Audio…).");
         }
-        var pattern = show.Library.Add(title, frames, path);
+        var patternSource = framePaths.FirstOrDefault(p => LuminaSidecar.IsLaserFrameFile(p));
+        var pattern = show.Library.Add(title, frames, patternSource);
         if (scenes.Length > 0)
         {
             show.Timeline.ReplaceAll(scenes);
@@ -103,6 +104,12 @@ public static class MambaShowReader
         {
             if (!File.Exists(candidate)) return;
             var full = Path.GetFullPath(candidate);
+            var ext = Path.GetExtension(full);
+            if (ext.Equals(".ild", StringComparison.OrdinalIgnoreCase) && !IldaReader.LooksLikeIlda(full))
+            {
+                return;
+            }
+
             if (seen.Add(full)) found.Add(full);
         }
 

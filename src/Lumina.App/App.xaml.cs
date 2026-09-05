@@ -40,8 +40,23 @@ public partial class App : Application
 
     private static void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
+        var msg = e.Exception.GetBaseException().Message;
+        // Cette erreur venait souvent d'anciens sidecars / faux .ild : ne pas laisser planter la session.
+        if (msg.Contains("en-tête ILDA manquant", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                "Un fichier a été pris pour de l’ILDA alors qu’il ne l’est pas.\n\n" +
+                "Fermez Lumina, relancez la version à jour, puis rouvrez le show (.mrs).\n" +
+                "Si le problème continue, supprimez le fichier « *.lumina.json » à côté du show.",
+                "Lumina — fichier non ILDA",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            e.Handled = true;
+            return;
+        }
+
         MessageBox.Show(
-            e.Exception.GetBaseException().Message,
+            msg,
             "Lumina — erreur",
             MessageBoxButton.OK,
             MessageBoxImage.Error);

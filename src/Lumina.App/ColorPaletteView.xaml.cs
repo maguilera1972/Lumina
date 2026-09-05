@@ -12,6 +12,7 @@ public partial class ColorPaletteView : UserControl
     private ColorConversionProfile _profile = ColorConversionProfile.CreateRgb();
     private LaserFrame? _sample;
     private int _selected;
+    private int _worldIndex;
     private bool _suppress = true;
 
     public event Action? ProfileChanged;
@@ -56,14 +57,11 @@ public partial class ColorPaletteView : UserControl
         BlueFold.Value = profile.BlueFold;
         YellowFromRg.Value = profile.YellowFromRedGreen;
         ProfileNameBox.Text = profile.Name;
-        profile.Alignment ??= new ProjectionAlignment();
-        AlignWidth.Value = profile.Alignment.Width;
-        AlignHeight.Value = profile.Alignment.Height;
-        AlignX.Value = profile.Alignment.OffsetX;
-        AlignY.Value = profile.Alignment.OffsetY;
-        AlignRot.Value = profile.Alignment.Rotation;
-        FlipXBox.IsChecked = profile.Alignment.FlipX;
-        FlipYBox.IsChecked = profile.Alignment.FlipY;
+        ProjectionWorldBank.EnsureDefaults(profile);
+        ProjectionWorldBank.SyncPrimary(profile);
+        _worldIndex = 0;
+        RebuildWorldList();
+        PushWorldEditor();
         RefreshAlignReadouts();
         ModeBox.SelectedIndex = profile.Mode switch
         {
@@ -162,7 +160,11 @@ public partial class ColorPaletteView : UserControl
 
     private void ResetAlign_Click(object sender, RoutedEventArgs e)
     {
-        _profile.Alignment.Reset();
+        ProjectionWorldBank.EnsureDefaults(_profile);
+        if (_worldIndex < 0 || _worldIndex >= _profile.Worlds.Count) _worldIndex = 0;
+        _profile.Worlds[_worldIndex].Alignment.Reset();
+        if (_worldIndex == 0)
+            _profile.Alignment.Reset();
         Bind(_profile, _sample);
         ProfileChanged?.Invoke();
     }
@@ -293,15 +295,116 @@ public partial class ColorPaletteView : UserControl
         };
         var name = ProfileNameBox.Text.Trim();
         if (name.Length > 0) _profile.Name = name;
-        _profile.Alignment ??= new ProjectionAlignment();
-        _profile.Alignment.Width = AlignWidth.Value;
-        _profile.Alignment.Height = AlignHeight.Value;
-        _profile.Alignment.OffsetX = AlignX.Value;
-        _profile.Alignment.OffsetY = AlignY.Value;
-        _profile.Alignment.Rotation = AlignRot.Value;
-        _profile.Alignment.FlipX = FlipXBox.IsChecked == true;
-        _profile.Alignment.FlipY = FlipYBox.IsChecked == true;
+        ProjectionWorldBank.EnsureDefaults(_profile);
+        if (_worldIndex < 0 || _worldIndex >= _profile.Worlds.Count)
+            _worldIndex = 0;
+        var world = _profile.Worlds[_worldIndex];
+        world.Enabled = WorldEnabledBox.IsChecked == true;
+        if (WorldProjectorBox.SelectedIndex >= 0)
+            world.ProjectorIndex = WorldProjectorBox.SelectedIndex;
+        world.Alignment ??= new ProjectionAlignment();
+        world.Alignment.Width = AlignWidth.Value;
+        world.Alignment.Height = AlignHeight.Value;
+        world.Alignment.OffsetX = AlignX.Value;
+        world.Alignment.OffsetY = AlignY.Value;
+        world.Alignment.Rotation = AlignRot.Value;
+        world.Alignment.FlipX = FlipXBox.IsChecked == true;
+        world.Alignment.FlipY = FlipYBox.IsChecked == true;
+        if (_worldIndex == 0)
+            _profile.Alignment.CopyFrom(world.Alignment);
+        else
+            ProjectionWorldBank.SyncPrimary(_profile);
         RefreshAlignReadouts();
+    }
+
+    private void RebuildWorldList()
+    {
+        if (WorldList is null) return;
+        ProjectionWorldBank.EnsureDefaults(_profile);
+        var prev = _worldIndex;
+        WorldList.Items.Clear();
+        for (var i = 0; i < _profile.Worlds.Count; i++)
+        {
+            var w = _profile.Worlds[i];
+            var mark = w.Enabled ? "" : " (off)";
+            WorldList.Items.Add($"{i + 1}. {w.Name} · P{w.ProjectorIndex}{mark}");
+        }
+
+        _worldIndex = Math.Clamp(prev, 0, Math.Max(0, _profile.Worlds.Count - 1));
+        if (WorldList.Items.Count > 0)
+            WorldList.SelectedIndex = _worldIndex;
+    }
+
+    private void PushWorldEditor()
+    {
+        ProjectionWorldBank.EnsureDefaults(_profile);
+        if (_worldIndex < 0 || _worldIndex >= _profile.Worlds.Count) _worldIndex = 0;
+        var world = _profile.Worlds[_worldIndex];
+        WorldNameBox.Text = world.Name;
+        WorldEnabledBox.IsChecked = world.Enabled;
+        WorldProjectorBox.SelectedIndex = Math.Clamp(world.ProjectorIndex, 0, 7);
+        var a = world.Alignment ?? new ProjectionAlignment();
+        AlignWidth.Value = a.Width;
+        AlignHeight.Value = a.Height;
+        AlignX.Value = a.OffsetX;
+        AlignY.Value = a.OffsetY;
+        AlignRot.Value = a.Rotation;
+        FlipXBox.IsChecked = a.FlipX;
+        FlipYBox.IsChecked = a.FlipY;
+        RefreshAlignReadouts();
+    }
+
+    private void WorldList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppress || WorldList.SelectedIndex < 0) return;
+        PullProfile();
+        _worldIndex = WorldList.SelectedIndex;
+        _suppress = true;
+        PushWorldEditor();
+        _suppress = false;
+        RefreshSample();
+    }
+
+    private void AddWorld_Click(object sender, RoutedEventArgs e)
+    {
+        PullProfile();
+        ProjectionWorldBank.Add(_profile);
+        _worldIndex = _profile.Worlds.Count - 1;
+        _suppress = true;
+        RebuildWorldList();
+        PushWorldEditor();
+        _suppress = false;
+        RefreshSample();
+        ProfileChanged?.Invoke();
+    }
+
+    private void RemoveWorld_Click(object sender, RoutedEventArgs e)
+    {
+        ProjectionWorldBank.EnsureDefaults(_profile);
+        if (_profile.Worlds.Count <= 1) return;
+        var id = _profile.Worlds[_worldIndex].Id;
+        if (!ProjectionWorldBank.Remove(_profile, id)) return;
+        _worldIndex = Math.Min(_worldIndex, _profile.Worlds.Count - 1);
+        _suppress = true;
+        RebuildWorldList();
+        PushWorldEditor();
+        _suppress = false;
+        RefreshSample();
+        ProfileChanged?.Invoke();
+    }
+
+    private void WorldName_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_suppress) return;
+        ProjectionWorldBank.EnsureDefaults(_profile);
+        if (_worldIndex < 0 || _worldIndex >= _profile.Worlds.Count) return;
+        var name = WorldNameBox.Text.Trim();
+        if (name.Length == 0) return;
+        _profile.Worlds[_worldIndex].Name = name;
+        _suppress = true;
+        RebuildWorldList();
+        _suppress = false;
+        ProfileChanged?.Invoke();
     }
 
     private void RefreshAlignReadouts()

@@ -23,6 +23,8 @@ public static class ProjectorProfileStore
         if (loaded.Entries.Count == 0) loaded.ResetTableToIlda();
         loaded.Alignment ??= new ProjectionAlignment();
         loaded.ApplyProjector(loaded.Projector);
+        ProjectionWorldBank.EnsureDefaults(loaded);
+        ProjectionWorldBank.SyncPrimary(loaded);
         return loaded;
     }
 }

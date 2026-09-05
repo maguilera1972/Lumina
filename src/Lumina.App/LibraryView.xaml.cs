@@ -84,67 +84,26 @@ public partial class LibraryView : UserControl
         for (var i = 0; i < _show.Library.Items.Count; i++)
         {
             var pattern = _show.Library.Items[i];
-            var tile = BuildTile(pattern, i, ReferenceEquals(pattern, _selected));
-            PadHost.Children.Add(tile);
+            PadHost.Children.Add(PatternPadTiles.Build(
+                pattern, i, ReferenceEquals(pattern, _selected), _colors, this,
+                onPress: null, onRelease: null,
+                onSelect: _ => Select(pattern),
+                onDoubleClick: p => PlaceRequested?.Invoke(p)));
         }
     }
 
-    private FrameworkElement BuildTile(PatternItem pattern, int index, bool selected)
-    {
-        var visual = LaserColorConverter.Apply(pattern.FrameAtProgress(pattern.Frames.Count > 1 ? 0.18 : 0) ?? pattern.Frames.FirstOrDefault(), _colors);
-        var preview = new LaserPreview
-        {
-            Width = 120,
-            Height = 84,
-            Margin = new Thickness(0, 0, 0, 6)
-        };
-        preview.ShowFrame(visual);
-
-        var title = new TextBlock
-        {
-            Text = pattern.Name,
-            TextWrapping = TextWrapping.Wrap,
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 4),
-            MaxHeight = 34
-        };
-
-        var meta = new TextBlock
-        {
-            Text = $"{pattern.Frames.Count} frame(s)  ·  pad {index + 1}",
-            Foreground = TryFindResource("BoothMuted") as Brush ?? Brushes.LightGray,
-            FontSize = 11,
-            TextWrapping = TextWrapping.Wrap
-        };
-
-        var stack = new StackPanel();
-        stack.Children.Add(preview);
-        stack.Children.Add(title);
-        stack.Children.Add(meta);
-
-        var btn = new Button
-        {
-            Width = 150,
-            Height = 152,
-            Margin = new Thickness(0, 0, 8, 8),
-            Padding = new Thickness(8),
-            Content = stack,
-            Background = TryFindResource("BoothPanel") as Brush,
-            BorderBrush = selected
-                ? (TryFindResource("BoothAccent") as Brush ?? Brushes.Cyan)
-                : (TryFindResource("BoothEdge") as Brush ?? Brushes.Transparent),
-            BorderThickness = new Thickness(selected ? 2 : 1),
-            HorizontalContentAlignment = HorizontalAlignment.Stretch,
-            VerticalContentAlignment = VerticalAlignment.Stretch,
-            Tag = pattern,
-            ToolTip = pattern.SourcePath is null ? pattern.Name : $"{pattern.Name}\n{pattern.SourcePath}"
-        };
-        btn.Click += (_, _) => Select(pattern);
-        btn.MouseDoubleClick += (_, _) => PlaceRequested?.Invoke(pattern);
-        return btn;
-    }
-
     public void Select(PatternItem pattern) => Select(pattern, propagate: true);
+
+    /// <summary>Updates the right-hand pad preview to follow the live playback frame.</summary>
+    public void ShowPlaybackFrame(LaserFrame? frame)
+    {
+        if (frame is null) return;
+        PadPreview.ShowFrame(frame);
+        if (_selected is not null)
+        {
+            PadLabel.Text = $"{_selected.Name}  (lecture)";
+        }
+    }
 
     private void Select(PatternItem pattern, bool propagate)
     {

@@ -42,9 +42,16 @@ La USB-Box MediaLas n’a que **trois** sorties analogiques couleur (FTDI D2XX, 
 
 Étalonnage (courbes 0 / 25 / 50 / 75 / 100 % par diode) : motifs test Rouge / Vert / Bleu ou Jaune / Blanc. Enregistrer le show écrit le profil dans `*.lumina.json`.
 
-### Espace de projection
+### Espace de projection / mondes
 
-Dans **Palette couleurs**, section **ESPACE DE PROJECTION** : largeur, hauteur, alignement X/Y, rotation, miroir. **Mire d’alignement** affiche une grille (aperçu écran, et mur si **LASER ON**). **Enregistrer le profil…** / **Charger un profil…** utilise un fichier `*.lumina-profile.json` (couleurs + géométrie), réutilisable d’un show à l’autre. Les mêmes réglages sont aussi dans le sidecar du show.
+Dans **Palette couleurs**, section **ESPACE DE PROJECTION** :
+
+- **Mondes** : zones indépendantes (plusieurs zones sur le mur, ou préparation multi-projecteurs).
+- Chaque monde a sa géométrie (largeur, hauteur, alignement, rotation, miroir) et un **n° de projecteur** (0 = principal / aperçu).
+- L’aperçu **compose** tous les mondes actifs (contenu dupliqué dans chaque zone).
+- **Enregistrer le profil…** / **Charger un profil…** conserve aussi la liste des mondes (`*.lumina-profile.json` et sidecar du show).
+
+La sortie multi-DAC réelle (FB4 / bridge) utilisera plus tard le n° de projecteur ; aujourd’hui le composite sert surtout à caler et prévisualiser.
 
 ## Vérifier le synchro audio / laser
 

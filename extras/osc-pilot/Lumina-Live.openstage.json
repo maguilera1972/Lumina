@@ -1,0 +1,66 @@
+{
+  "version": "1.27.0",
+  "type": "session",
+  "createdWith": "Lumina",
+  "comments": "Ouvrir avec Open Stage Control (client) sur iPad, ou servir via open-stage-control. Destination OSC = IP du PC Lumina, port 9000 UDP. Adresses /lumina/pad/N et /lumina/panic.",
+  "session": {
+    "id": "lumina-live",
+    "type": "root",
+    "width": 1024,
+    "height": 768,
+    "colorText": "#F5FBFF",
+    "colorWidget": "#121A26",
+    "alphaWidget": 0.95,
+    "colorBg": "#070B12",
+    "layout": "vertical",
+    "justify": "center",
+    "widgets": [
+      {
+        "type": "text",
+        "id": "title",
+        "label": false,
+        "value": "Lumina Live",
+        "height": 40,
+        "css": "font-size:22px;font-weight:700;text-align:center;"
+      },
+      {
+        "type": "panel",
+        "id": "pads",
+        "label": false,
+        "layout": "grid",
+        "gridTemplate": "repeat(4, 1fr) / repeat(4, 1fr)",
+        "height": 520,
+        "widgets": [
+          { "type": "button", "id": "pad1",  "label": "Pad 1",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/1",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad2",  "label": "Pad 2",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/2",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad3",  "label": "Pad 3",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/3",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad4",  "label": "Pad 4",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/4",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad5",  "label": "Pad 5",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/5",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad6",  "label": "Pad 6",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/6",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad7",  "label": "Pad 7",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/7",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad8",  "label": "Pad 8",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/8",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad9",  "label": "Pad 9",  "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/9",  "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad10", "label": "Pad 10", "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/10", "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad11", "label": "Pad 11", "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/11", "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad12", "label": "Pad 12", "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/12", "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad13", "label": "Pad 13", "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/13", "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad14", "label": "Pad 14", "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/14", "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad15", "label": "Pad 15", "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/15", "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 },
+          { "type": "button", "id": "pad16", "label": "Pad 16", "mode": "tap", "on": 1, "off": 0, "address": "/lumina/pad/16", "target": [{ "type": "osc", "host": "auto", "port": 9000 }], "colorWidget": "#1E6A78", "height": 110 }
+        ]
+      },
+      {
+        "type": "button",
+        "id": "panic",
+        "label": "COUPURE",
+        "mode": "tap",
+        "on": 1,
+        "off": 0,
+        "address": "/lumina/panic",
+        "target": [{ "type": "osc", "host": "auto", "port": 9000 }],
+        "colorWidget": "#8B1E1E",
+        "height": 56
+      }
+    ]
+  }
+}

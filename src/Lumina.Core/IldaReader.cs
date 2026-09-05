@@ -3,6 +3,22 @@ namespace Lumina.Core;
 /// <summary>ILDA Image Data Transfer Format (revisions including true-color 4/5).</summary>
 public static class IldaReader
 {
+    public static bool LooksLikeIlda(string path)
+    {
+        try
+        {
+            if (!File.Exists(path) || new FileInfo(path).Length < 32) return false;
+            using var stream = File.OpenRead(path);
+            Span<byte> magic = stackalloc byte[4];
+            var n = stream.Read(magic);
+            return n == 4 && magic[0] == (byte)'I' && magic[1] == (byte)'L' && magic[2] == (byte)'D' && magic[3] == (byte)'A';
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static IReadOnlyList<LaserFrame> Read(string path)
     {
         using var stream = File.OpenRead(path);
@@ -20,6 +36,8 @@ public static class IldaReader
             var magic = reader.ReadBytes(4);
             if (magic.Length < 4 || magic[0] != (byte)'I' || magic[1] != (byte)'L' || magic[2] != (byte)'D' || magic[3] != (byte)'A')
             {
+                // Trailing padding / non-ILDA bytes after valid frames: stop cleanly.
+                if (frames.Count > 0) break;
                 throw new InvalidDataException("Fichier ILDA invalide (en-tête ILDA manquant).");
             }
 
@@ -56,6 +74,7 @@ public static class IldaReader
                     frames.Add(ReadTrueColor(reader, name, company, frameNumber, totalFrames, projector, count, format, threeD: false));
                     break;
                 default:
+                    if (frames.Count > 0) return frames;
                     throw new InvalidDataException($"Format ILDA {format} non supporté.");
             }
         }

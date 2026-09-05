@@ -85,6 +85,9 @@ public sealed class ColorConversionProfile
     public List<PaletteEntry> Entries { get; set; } = [];
     public ProjectionAlignment Alignment { get; set; } = new();
 
+    /// <summary>Named projection zones. World 0 mirrors <see cref="Alignment"/> for compatibility.</summary>
+    public List<ProjectionWorld> Worlds { get; set; } = [];
+
     public bool IsRgb => Projector == ProjectorColorSet.Rgb;
     public bool IsRgy => Projector == ProjectorColorSet.Rgy;
 
@@ -178,7 +181,8 @@ public sealed class ColorConversionProfile
             GreenCurve = GreenCurve.Clone(),
             BlueCurve = BlueCurve.Clone(),
             YellowCurve = YellowCurve.Clone(),
-            Alignment = (Alignment ?? new ProjectionAlignment()).Clone()
+            Alignment = (Alignment ?? new ProjectionAlignment()).Clone(),
+            Worlds = (Worlds ?? []).Select(w => w.Clone()).ToList()
         };
         foreach (var e in Entries)
         {

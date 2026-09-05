@@ -65,31 +65,95 @@ public sealed class LuminaSidecar
     public static void ApplyTo(LaserShow show)
     {
         if (show.SourcePath is null) return;
-        var sidecar = TryLoad(show.SourcePath);
+        LuminaSidecar? sidecar;
+        try
+        {
+            sidecar = TryLoad(show.SourcePath);
+        }
+        catch (Exception ex)
+        {
+            show.Warnings.Add("Sidecar Lumina illisible : " + ex.Message);
+            return;
+        }
+
         if (sidecar is null) return;
 
+        // Sidecars créés par d'anciennes versions pouvaient pointer un .mrs comme source ILDA.
+        // On les ignore pour les motifs ; le contenu déjà chargé (Mamba) reste la référence.
         if (sidecar.Patterns.Count > 0)
         {
-            show.Library.Items.Clear();
+            var loaded = new List<(string Id, string Name, string Path, IReadOnlyList<LaserFrame> Frames)>();
             foreach (var pattern in sidecar.Patterns)
             {
-                var path = Resolve(show.SourcePath, pattern.SourcePath);
-                if (path is null || !File.Exists(path)) continue;
-                IReadOnlyList<LaserFrame> frames = path.EndsWith(".fra", StringComparison.OrdinalIgnoreCase)
-                    ? FraReader.Read(path)
-                    : IldaReader.Read(path);
-                show.Library.Add(pattern.Name, frames, path, pattern.Id);
+                try
+                {
+                    var path = Resolve(show.SourcePath, pattern.SourcePath);
+                    if (path is null || !File.Exists(path) || !IsLaserFrameFile(path) ||
+                        (path.EndsWith(".ild", StringComparison.OrdinalIgnoreCase) && !IldaReader.LooksLikeIlda(path)))
+                    {
+                        var existing = FindExistingPattern(show, pattern);
+                        if (existing is not null)
+                        {
+                            loaded.Add((pattern.Id, pattern.Name, existing.SourcePath ?? "", existing.Frames));
+                        }
+
+                        continue;
+                    }
+
+                    var frames = ReadLaserFrames(path);
+                    if (frames.Count == 0) continue;
+                    loaded.Add((pattern.Id, pattern.Name, path, frames));
+                }
+                catch (Exception ex)
+                {
+                    show.Warnings.Add($"Motif « {pattern.Name} » : {ex.Message}");
+                }
             }
 
-            show.Frames = show.Library.Items.SelectMany(p => p.Frames).ToList();
+            // Ne remplacer la bibliothèque que si on a rechargé au moins un vrai fichier ILDA/FRA.
+            // Sinon conserver le show principal (Mamba / ILDA d'origine).
+            var fromDisk = loaded.Count(l => IsLaserFrameFile(l.Path));
+            if (fromDisk > 0)
+            {
+                show.Library.Items.Clear();
+                foreach (var item in loaded)
+                {
+                    show.Library.Add(item.Name, item.Frames, string.IsNullOrWhiteSpace(item.Path) ? null : item.Path, item.Id);
+                }
+
+                if (show.Library.Items.Count > 0)
+                {
+                    show.Frames = show.Library.Items.SelectMany(p => p.Frames).ToList();
+                }
+            }
         }
 
         if (sidecar.Clips.Count > 0)
         {
-            show.Timeline.Clips.Clear();
+            var clips = new List<TimelineClip>();
             foreach (var clip in sidecar.Clips)
             {
-                show.Timeline.Clips.Add(clip.ToClip());
+                var built = clip.ToClip();
+                if (show.Library.Get(built.PatternId) is null)
+                {
+                    // Réaligner sur le premier motif si l'id a changé (réouverture Mamba).
+                    if (show.Library.Items.Count > 0)
+                    {
+                        built.PatternId = show.Library.Items[0].Id;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                clips.Add(built);
+            }
+
+            if (clips.Count > 0)
+            {
+                show.Timeline.Clips.Clear();
+                show.Timeline.Clips.AddRange(clips);
             }
         }
 
@@ -118,7 +182,34 @@ public sealed class LuminaSidecar
 
             show.Colors.ApplyProjector(show.Colors.Projector);
             show.Colors.Alignment ??= new ProjectionAlignment();
+            ProjectionWorldBank.EnsureDefaults(show.Colors);
+            ProjectionWorldBank.SyncPrimary(show.Colors);
         }
+    }
+
+    public static bool IsLaserFrameFile(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        var ext = Path.GetExtension(path);
+        return ext.Equals(".ild", StringComparison.OrdinalIgnoreCase)
+               || ext.Equals(".fra", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static IReadOnlyList<LaserFrame> ReadLaserFrames(string path) =>
+        path.EndsWith(".fra", StringComparison.OrdinalIgnoreCase)
+            ? FraReader.Read(path)
+            : IldaReader.Read(path);
+
+    private static PatternItem? FindExistingPattern(LaserShow show, SidecarPattern pattern)
+    {
+        if (!string.IsNullOrWhiteSpace(pattern.Id))
+        {
+            var byId = show.Library.Get(pattern.Id);
+            if (byId is not null) return byId;
+        }
+
+        return show.Library.Items.FirstOrDefault(p =>
+            p.Name.Equals(pattern.Name, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string? Resolve(string showPath, string? relative)
@@ -167,7 +258,8 @@ public sealed class SidecarPattern
     {
         Id = item.Id,
         Name = item.Name,
-        SourcePath = item.SourcePath
+        // Ne jamais persister un conteneur Mamba / show comme source ILDA.
+        SourcePath = LuminaSidecar.IsLaserFrameFile(item.SourcePath) ? item.SourcePath : null
     };
 }
 
@@ -212,6 +304,8 @@ public sealed class SidecarClip
 [JsonSerializable(typeof(List<SidecarClip>))]
 [JsonSerializable(typeof(ColorConversionProfile))]
 [JsonSerializable(typeof(ProjectionAlignment))]
+[JsonSerializable(typeof(ProjectionWorld))]
+[JsonSerializable(typeof(List<ProjectionWorld>))]
 [JsonSerializable(typeof(PaletteEntry))]
 [JsonSerializable(typeof(List<PaletteEntry>))]
 [JsonSerializable(typeof(IntensityCurve))]

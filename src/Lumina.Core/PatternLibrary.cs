@@ -37,14 +37,14 @@ public sealed class PatternLibrary
 
     public PatternItem ImportIlda(string path)
     {
-        var frames = IldaReader.Read(path);
+        var frames = ReadFrames(path);
         var name = Path.GetFileNameWithoutExtension(path);
         return Add(name, frames, path);
     }
 
     public IReadOnlyList<PatternItem> ImportEachFrame(string path)
     {
-        var frames = IldaReader.Read(path);
+        var frames = ReadFrames(path);
         var folder = Path.GetFileNameWithoutExtension(path);
         var added = new List<PatternItem>();
         for (var i = 0; i < frames.Count; i++)
@@ -54,5 +54,13 @@ public sealed class PatternLibrary
         }
 
         return added;
+    }
+
+    /// <summary>Reads .ild via ILDA header or MediaLas .fra via FraReader.</summary>
+    public static IReadOnlyList<LaserFrame> ReadFrames(string path)
+    {
+        if (path.EndsWith(".fra", StringComparison.OrdinalIgnoreCase))
+            return FraReader.Read(path);
+        return IldaReader.Read(path);
     }
 }

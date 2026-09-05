@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Lumina.Core;
@@ -14,6 +15,7 @@ public partial class MainWindow : Window
     private ILaserDac _dac = DacRegistry.Create(DacDriverKind.Preview);
     private readonly ShowClock _clock = new();
     private readonly ShowAudioPlayer _audio;
+    private readonly LuminaUserSettings _settings = LuminaUserSettings.Load();
     private readonly DispatcherTimer _timer;
     private LaserShow? _show;
     private BeatGrid? _beatGrid;
@@ -23,6 +25,7 @@ public partial class MainWindow : Window
     private LaserFrame? _lastVisual;
     private LaserStageWindow? _stageWindow;
     private PatternBrowserWindow? _libraryWindow;
+    private FrameEditorWindow? _frameEditorWindow;
     private bool _previewDetached;
     private bool _closingStage;
     private bool _closingLibrary;
@@ -30,6 +33,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        UpdateIldaFolderStatus();
         _dac.Connect();
         _audio = new ShowAudioPlayer(Dispatcher);
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
@@ -57,6 +61,8 @@ public partial class MainWindow : Window
         Library.DetachRequested += OpenLibraryWindow;
         ClipEditor.EffectsChanged += OnClipEffectsChanged;
         ClipEditor.DeleteRequested += DeleteClip;
+        LivePanel.SetIldaInitialDirectory(GetIldaInitialDirectory());
+        LivePanel.SetColors(PaletteView.Profile);
         ShowEmptyState(true);
         Closed += (_, _) =>
         {
@@ -67,6 +73,32 @@ public partial class MainWindow : Window
             _dac.Dispose();
         };
         UpdateLaserArmUi();
+    }
+
+    private string? GetIldaInitialDirectory()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.IldaContentFolder))
+            return null;
+
+        return Directory.Exists(_settings.IldaContentFolder) ? _settings.IldaContentFolder : null;
+    }
+
+    private void UpdateIldaFolderStatus()
+    {
+        var init = GetIldaInitialDirectory();
+        IldaFolderStatus.Text = init is null
+            ? "Contenu ILDA : (non défini)"
+            : "Contenu ILDA : " + IOPath.GetFileName(init);
+    }
+
+    private void SelectIldaFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new IldaContentFolderDialog(_settings.IldaContentFolder) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+        _settings.IldaContentFolder = dlg.ResultFolder;
+        _settings.Save();
+        UpdateIldaFolderStatus();
+        LivePanel.SetIldaInitialDirectory(GetIldaInitialDirectory());
     }
 
     private void CloseShow_Click(object sender, RoutedEventArgs e)
@@ -84,11 +116,13 @@ public partial class MainWindow : Window
         _audio.Stop();
         _audio.Close();
         _holdOutput = null;
+        _lastVisual = null;
         _show = null;
         IldaView.Clear();
         PaletteView.Bind(ColorConversionProfile.CreateRgb(), null);
         Library.Bind(null);
         _libraryWindow?.Bind(null, null);
+        LivePanel.SetColors(PaletteView.Profile);
         ClipEditor.Bind(null);
         Timeline.Bind(null, TimeSpan.FromSeconds(10));
         Waveform.Clear("Chargez un MP3 ou un WAV pour voir la forme d’onde, le rythme et caler le laser.");
@@ -109,6 +143,7 @@ public partial class MainWindow : Window
         PaletteView.Bind(_show.Colors, null);
         Library.Bind(_show, _show.Colors);
         _libraryWindow?.Bind(_show, _show.Colors);
+        LivePanel.SetColors(_show.Colors);
         ClipEditor.Bind(null);
         BindLoadedShow("Nouveau show vide — aucune trace de l’ancien projet.");
     }
@@ -128,35 +163,52 @@ public partial class MainWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Inspecter un fichier ILDA",
-            Filter = "ILDA|*.ild|Tous|*.*"
+            Title = "Inspecter un fichier ILDA / FRA",
+            Filter = "ILDA / FRA|*.ild;*.fra|ILDA (*.ild)|*.ild|FRA MediaLas (*.fra)|*.fra|Tous|*.*"
         };
+        var initDir = GetIldaInitialDirectory();
+        if (initDir is not null) dlg.InitialDirectory = initDir;
         if (dlg.ShowDialog() != true) return;
         try
         {
-            var frames = IldaReader.Read(dlg.FileName);
+            var frames = PatternLibrary.ReadFrames(dlg.FileName);
             IldaView.Load(IOPath.GetFileName(dlg.FileName), frames);
-            StatusText.Text = $"ILDA : {frames.Count} frame(s) dans {IOPath.GetFileName(dlg.FileName)}.";
+            StatusText.Text = $"ILDA/FRA : {frames.Count} frame(s) dans {IOPath.GetFileName(dlg.FileName)}.";
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "ILDA", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, ex.Message, "ILDA / FRA", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
     private void LoadShow(string path)
     {
-        ResetSession();
-        _show = ShowLoader.Open(path);
-        EnsureDacDriver(_show.Colors);
-        IldaView.Load(_show.Title, _show.Frames);
-        PaletteView.Bind(_show.Colors, _show.Frames.Count > 0 ? _show.Frames[0] : null);
-        Library.Bind(_show, _show.Colors);
-        _libraryWindow?.Bind(_show, _show.Colors);
-        ClipEditor.Bind(_show.Timeline.Clips.FirstOrDefault());
-        if (_show.Timeline.Clips.Count > 0) Timeline.SelectClip(_show.Timeline.Clips[0]);
-        var warn = _show.Warnings.Count == 0 ? "" : " " + string.Join(" ", _show.Warnings);
-        BindLoadedShow($"Chargé : {_show.Frames.Count} frame(s), {_show.Library.Items.Count} motif(s), {_show.Timeline.Clips.Count} clip(s).{warn}");
+        try
+        {
+            ResetSession();
+            _show = ShowLoader.Open(path);
+            EnsureDacDriver(_show.Colors);
+            IldaView.Load(_show.Title, _show.Frames);
+            PaletteView.Bind(_show.Colors, _show.Frames.Count > 0 ? _show.Frames[0] : null);
+            Library.Bind(_show, _show.Colors);
+            _libraryWindow?.Bind(_show, _show.Colors);
+            LivePanel.SetColors(_show.Colors);
+            ClipEditor.Bind(_show.Timeline.Clips.FirstOrDefault());
+            if (_show.Timeline.Clips.Count > 0) Timeline.SelectClip(_show.Timeline.Clips[0]);
+            var warn = _show.Warnings.Count == 0 ? "" : " " + string.Join(" ", _show.Warnings);
+            BindLoadedShow($"Chargé : {_show.Frames.Count} frame(s), {_show.Library.Items.Count} motif(s), {_show.Timeline.Clips.Count} clip(s).{warn}");
+        }
+        catch (Exception ex)
+        {
+            ResetSession();
+            MessageBox.Show(
+                this,
+                "Impossible d’ouvrir ce show :\n\n" + ex.Message,
+                "Lumina — ouverture",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            StatusText.Text = "Ouverture annulée : " + ex.Message;
+        }
     }
 
     private void BindLoadedShow(string status)
@@ -190,7 +242,8 @@ public partial class MainWindow : Window
         if (!_previewDetached)
         {
             EmptyOverlay.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
-            ShowPreview.SetHintVisible(!empty);
+            // Hint only when there is truly no show — never while a show is loaded.
+            ShowPreview.SetHintVisible(empty);
         }
     }
 
@@ -207,6 +260,8 @@ public partial class MainWindow : Window
             Filter = "Motifs|*.ild;*.fra|ILDA (*.ild)|*.ild|FRA|*.fra|Tous|*.*",
             Multiselect = true
         };
+        var initDir = GetIldaInitialDirectory();
+        if (initDir is not null) dlg.InitialDirectory = initDir;
         if (dlg.ShowDialog(this) != true) return;
 
         foreach (var path in dlg.FileNames)
@@ -220,9 +275,7 @@ public partial class MainWindow : Window
         if (_show is null) return;
         try
         {
-            IReadOnlyList<LaserFrame> frames = path.EndsWith(".fra", StringComparison.OrdinalIgnoreCase)
-                ? FraReader.Read(path)
-                : IldaReader.Read(path);
+            IReadOnlyList<LaserFrame> frames = PatternLibrary.ReadFrames(path);
             if (frames.Count == 0)
             {
                 MessageBox.Show(this, "Aucune frame dans " + IOPath.GetFileName(path), "ILDA", MessageBoxButton.OK);
@@ -271,6 +324,7 @@ public partial class MainWindow : Window
         Library.Bind(_show, _show.Colors);
         Library.Select(added[^1]);
         _libraryWindow?.Bind(_show, _show.Colors);
+        LivePanel.SetColors(_show.Colors);
         _libraryWindow?.SelectById(added[^1].Id);
         IldaView.Load(_show.Title, _show.Frames);
         AutoSave();
@@ -395,6 +449,8 @@ public partial class MainWindow : Window
             Title = "Convertir un show Mamba / MRS en ILDA",
             Filter = "Shows|*.mrs;*.xrs;*.xmb;*.shw;*.fra;*.ild|Tous|*.*"
         };
+        var initDir = GetIldaInitialDirectory();
+        if (initDir is not null) dlg.InitialDirectory = initDir;
         if (dlg.ShowDialog() != true) return;
 
         var save = new SaveFileDialog
@@ -403,6 +459,7 @@ public partial class MainWindow : Window
             Filter = "ILDA (*.ild)|*.ild",
             FileName = IOPath.GetFileNameWithoutExtension(dlg.FileName) + ".ild"
         };
+        if (initDir is not null) save.InitialDirectory = initDir;
         if (save.ShowDialog() != true) return;
 
         try
@@ -441,6 +498,7 @@ public partial class MainWindow : Window
         RenderAt(_clock.Position);
         Library.SetColors(_show?.Colors);
         _libraryWindow?.SetColors(_show?.Colors);
+        LivePanel.SetColors(_show?.Colors);
         UpdateLaserArmUi();
     }
 
@@ -734,6 +792,7 @@ public partial class MainWindow : Window
     {
         _emergency = true;
         _laserArmed = false;
+        LivePanel.Panic();
         UpdateLaserArmUi();
         StopPlayback();
         StatusText.Text = "Arrêt d’urgence : laser éteint, audio coupé.";
@@ -773,12 +832,15 @@ public partial class MainWindow : Window
         }
         else
         {
-            if (_holdOutput is not null || _show is not null)
+            if (_holdOutput is not null || _show is not null || IsLiveProjectionMode())
             {
                 _timer.Start();
             }
 
-            RenderAt(_clock.Position);
+            if (IsLiveProjectionMode())
+                LivePanel.WriteToDac(_dac, true);
+            else
+                RenderAt(_clock.Position);
         }
 
         UpdateLaserArmUi();
@@ -809,6 +871,13 @@ public partial class MainWindow : Window
     private void Tick()
     {
         if (_emergency) return;
+
+        if (IsLiveProjectionMode())
+        {
+            LivePanel.WriteToDac(_dac, _laserArmed);
+            return;
+        }
+
         if (_show is null)
         {
             if (_holdOutput is not null) RenderAt(_clock.Position);
@@ -817,55 +886,101 @@ public partial class MainWindow : Window
 
         if (_clock.Finished)
         {
-            StopPlayback();
+            PausePlayback();
+            RenderAt(_clock.TimelineDuration > TimeSpan.Zero
+                ? _clock.TimelineDuration - TimeSpan.FromMilliseconds(1)
+                : TimeSpan.Zero);
+            StatusText.Text = "Fin de la timeline — la dernière image reste à l’écran (projecteur éteint).";
             return;
         }
 
         RenderAt(_clock.Position);
     }
 
+    private bool IsLiveProjectionMode() =>
+        MainTabs.SelectedItem is TabItem tab && ReferenceEquals(tab.Content, LivePanel);
+
+    private void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        var live = IsLiveProjectionMode();
+        LivePanel.SetProjectionActive(live);
+        if (live)
+        {
+            // Live is a separate projection path: pause Atelier timeline / audio.
+            if (_clock.IsRunning) PausePlayback();
+            if (_laserArmed) _timer.Start();
+            LivePanel.Focus();
+            StatusText.Text = "Mode Live : banque ILDA indépendante de l’Atelier (pads / MIDI / iPad).";
+        }
+        else if (_laserArmed && (_show is not null || _holdOutput is not null))
+        {
+            _timer.Start();
+            StatusText.Text = "Mode Atelier : timeline / show (indépendant de la banque Live).";
+        }
+    }
+
     private void RenderAt(TimeSpan time)
     {
         var colors = _show?.Colors ?? PaletteView.Profile;
-        var frame = _holdOutput ?? _show?.FrameAt(time);
-        var overlayEmpty = _show is null && _holdOutput is null;
+        var source = _holdOutput ?? _show?.FrameAtForPreview(time);
+        var overlayEmpty = _show is null && _holdOutput is null && source is null && _lastVisual is null;
         if (!_previewDetached)
         {
             EmptyOverlay.Visibility = overlayEmpty ? Visibility.Visible : Visibility.Collapsed;
-            ShowPreview.SetHintVisible(!overlayEmpty);
+            ShowPreview.SetHintVisible(overlayEmpty);
         }
 
-        if (frame is null)
+        if (source is null)
         {
-            _lastVisual = null;
-            if (!_previewDetached) ShowPreview.Clear();
+            // Keep the last image during timeline gaps / end-of-clip instead of wiping the preview.
+            if (_lastVisual is not null)
+            {
+                if (!_previewDetached) ShowPreview.ShowFrame(_lastVisual);
+                _stageWindow?.ShowFrame(_lastVisual);
+                Library.ShowPlaybackFrame(_lastVisual);
+                Waveform.SetPosition(time);
+                Timeline.SetPosition(time);
+                TimeText.Text = FormatTime(time) + " / " + FormatTime(_clock.TimelineDuration);
+                if (_laserArmed) _dac.Blank();
+                return;
+            }
+
+            if (!_previewDetached) ShowPreview.Clear(showHint: overlayEmpty);
             _stageWindow?.Clear();
             if (_laserArmed) _dac.Blank();
             return;
         }
 
-        var visual = LaserColorConverter.Apply(frame, colors);
+        var visual = LaserColorConverter.Apply(source, colors);
         _lastVisual = visual;
         if (!_previewDetached) ShowPreview.ShowFrame(visual);
         _stageWindow?.ShowFrame(visual);
+        Library.ShowPlaybackFrame(visual);
         Waveform.SetPosition(time);
         Timeline.SetPosition(time);
         TimeText.Text = FormatTime(time) + " / " + FormatTime(_clock.TimelineDuration);
         if (_show is not null)
         {
-            var idx = _show.IndexOf(frame);
-            FrameText.Text = _holdOutput is null
-                ? $"Frame {(idx < 0 ? 0 : idx + 1)} / {_show.Frames.Count}"
-                : _holdOutput.Name;
+            if (_holdOutput is not null)
+            {
+                FrameText.Text = _holdOutput.Name;
+            }
+            else
+            {
+                var idx = _show.FrameIndexAt(time);
+                var total = Math.Max(1, _show.Frames.Count);
+                FrameText.Text = $"Frame {idx + 1} / {total}";
+            }
         }
         else
         {
-            FrameText.Text = frame.Name;
+            FrameText.Text = source.Name;
         }
 
         if (_laserArmed)
         {
-            _dac.WriteFrame(DacConvert.From(frame, colors), 30000);
+            _dac.WriteFrame(DacConvert.From(source, colors), 30000);
         }
         else
         {
@@ -913,6 +1028,51 @@ public partial class MainWindow : Window
     private void PreviewWindow_Click(object sender, RoutedEventArgs e) => SetPreviewDetached(true);
 
     private void LibraryWindow_Click(object sender, RoutedEventArgs e) => OpenLibraryWindow();
+
+    private void FrameEditor_Click(object sender, RoutedEventArgs e) => OpenFrameEditor();
+
+    private void OpenFrameEditor(PatternItem? pattern = null)
+    {
+        if (_frameEditorWindow is null || !_frameEditorWindow.IsVisible)
+        {
+            _frameEditorWindow = new FrameEditorWindow();
+            _frameEditorWindow.PatternSaved += OnFrameEditorPatternSaved;
+            _frameEditorWindow.Closed += (_, _) =>
+            {
+                if (_frameEditorWindow is not null)
+                    _frameEditorWindow.PatternSaved -= OnFrameEditorPatternSaved;
+                _frameEditorWindow = null;
+            };
+        }
+
+        if (pattern is not null)
+            _frameEditorWindow.LoadPattern(pattern);
+        else
+            _frameEditorWindow.NewSession();
+
+        _frameEditorWindow.Show();
+        _frameEditorWindow.Activate();
+    }
+
+    private void OnFrameEditorPatternSaved(PatternItem pattern)
+    {
+        if (_show is null) return;
+        var existing = _show.Library.Get(pattern.Id);
+        if (existing is not null)
+        {
+            existing.Name = pattern.Name;
+            existing.Frames.Clear();
+            existing.Frames.AddRange(pattern.Frames);
+        }
+        else
+        {
+            _show.Library.Items.Add(pattern);
+        }
+        Library.Bind(_show, _show?.Colors);
+        _libraryWindow?.Bind(_show, _show?.Colors);
+        LivePanel.SetColors(_show?.Colors);
+        StatusText.Text = $"Motif « {pattern.Name} » ajouté/mis à jour dans la bibliothèque.";
+    }
 
     public void RequestEmergencyStop() => EmergencyStop();
 

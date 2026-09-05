@@ -16,6 +16,11 @@ public sealed class LaserShow
 
     public LaserFrame? FrameAt(TimeSpan time) => Timeline.FrameAt(time, this);
 
+    /// <summary>Preview helper: loops laser content when the playhead outlasts the timeline (long audio).</summary>
+    public LaserFrame? FrameAtForPreview(TimeSpan time) => Timeline.FrameAtLooped(time, this);
+
+    public int FrameIndexAt(TimeSpan time) => Timeline.FrameIndexAt(time, this);
+
     public int IndexOf(LaserFrame frame)
     {
         for (var i = 0; i < Frames.Count; i++)
@@ -23,7 +28,7 @@ public sealed class LaserShow
             if (ReferenceEquals(Frames[i], frame)) return i;
         }
 
-        return 0;
+        return -1;
     }
 }
 

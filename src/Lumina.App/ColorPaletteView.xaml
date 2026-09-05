@@ -37,8 +37,45 @@
 
           <TextBlock Text="ESPACE DE PROJECTION" FontWeight="SemiBold" Margin="0,4,0,4"/>
           <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" FontSize="12" Margin="0,0,0,6"
-                     Text="Taille et alignement sur le mur. Allumez le projecteur, affichez la mire, puis réglez."/>
+                     Text="Mondes = zones indépendantes (plusieurs projecteurs ou plusieurs zones sur le même mur). L’aperçu compose les mondes actifs."/>
+
+          <TextBlock Text="Mondes" Foreground="{DynamicResource BoothMuted}" FontSize="12"/>
+          <ListBox x:Name="WorldList" Height="88" Margin="0,2,0,6" SelectionChanged="WorldList_SelectionChanged"
+                   Background="#121A26" BorderBrush="#3AA8B8" BorderThickness="1"/>
+          <WrapPanel Margin="0,0,0,8">
+            <Button Content="Ajouter un monde" Click="AddWorld_Click" Padding="8,5" Margin="0,0,6,6"/>
+            <Button Content="Retirer" Click="RemoveWorld_Click" Padding="8,5" Margin="0,0,6,6"/>
+            <CheckBox x:Name="WorldEnabledBox" Content="Actif" VerticalAlignment="Center" Margin="0,0,8,6" Click="Profile_Changed"/>
+          </WrapPanel>
+          <Grid Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="70"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Nom" Foreground="{DynamicResource BoothMuted}" VerticalAlignment="Center"/>
+            <TextBox x:Name="WorldNameBox" Grid.Column="1" LostFocus="WorldName_LostFocus"/>
+          </Grid>
+          <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="70"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Projecteur #" Foreground="{DynamicResource BoothMuted}" VerticalAlignment="Center"/>
+            <ComboBox x:Name="WorldProjectorBox" Grid.Column="1" SelectionChanged="Profile_Changed">
+              <ComboBoxItem Content="0 — principal / aperçu"/>
+              <ComboBoxItem Content="1"/>
+              <ComboBoxItem Content="2"/>
+              <ComboBoxItem Content="3"/>
+              <ComboBoxItem Content="4"/>
+              <ComboBoxItem Content="5"/>
+              <ComboBoxItem Content="6"/>
+              <ComboBoxItem Content="7"/>
+            </ComboBox>
+          </Grid>
+
           <TextBox x:Name="ProfileNameBox" Margin="0,0,0,6" LostFocus="Profile_Changed" ToolTip="Nom du profil"/>
+          <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource BoothMuted}" FontSize="11" Margin="0,0,0,4"
+                     Text="Géométrie du monde sélectionné :"/>
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="70"/>

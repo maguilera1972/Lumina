@@ -129,7 +129,11 @@ public sealed class Timeline
         {
             var pattern = show.Library.Get(clip.PatternId);
             var source = pattern?.FrameAtProgress(clip.ProgressAt(time));
-            return source is null ? null : EffectProcessor.Apply(source, clip.Effects);
+            if (source is not null)
+            {
+                return EffectProcessor.Apply(source, clip.Effects);
+            }
+            // Clip présent mais motif introuvable : retomber sur les frames du show.
         }
 
         if (show.Frames.Count == 0) return null;
@@ -147,5 +151,62 @@ public sealed class Timeline
         var count = Math.Max(1, scene.FrameEnd - scene.FrameStart + 1);
         var index = scene.FrameStart + (int)Math.Clamp(Math.Floor(local * count), 0, count - 1);
         return show.Frames[Math.Clamp(index, 0, show.Frames.Count - 1)];
+    }
+
+    /// <summary>
+    /// Resolves the frame for preview/playback. When audio is longer than the laser timeline,
+    /// loops the laser content so the preview keeps animating instead of going blank.
+    /// </summary>
+    public LaserFrame? FrameAtLooped(TimeSpan time, LaserShow show)
+    {
+        var content = Duration;
+        if (content > TimeSpan.Zero && time >= content)
+        {
+            var ticks = content.Ticks;
+            if (ticks > 0)
+            {
+                time = TimeSpan.FromTicks(time.Ticks % ticks);
+            }
+            else
+            {
+                time = TimeSpan.Zero;
+            }
+        }
+
+        return FrameAt(time, show) ?? FrameAt(TimeSpan.Zero, show);
+    }
+
+    public int FrameIndexAt(TimeSpan time, LaserShow show)
+    {
+        var content = Duration;
+        var t = time;
+        if (content > TimeSpan.Zero && t >= content)
+        {
+            var ticks = content.Ticks;
+            if (ticks > 0) t = TimeSpan.FromTicks(t.Ticks % ticks);
+        }
+
+        var clip = ClipAt(t);
+        if (clip is not null)
+        {
+            var pattern = show.Library.Get(clip.PatternId);
+            if (pattern is { Frames.Count: > 0 })
+            {
+                return (int)Math.Clamp(Math.Floor(clip.ProgressAt(t) * pattern.Frames.Count), 0, pattern.Frames.Count - 1);
+            }
+        }
+
+        if (show.Frames.Count == 0) return 0;
+        if (Scenes.Count == 0)
+        {
+            return (int)Math.Clamp(t.TotalSeconds * 25, 0, show.Frames.Count - 1);
+        }
+
+        var scene = SceneAt(t);
+        if (scene is null) return 0;
+        var span = scene.Duration.TotalSeconds;
+        var local = span <= 0 ? 0 : (t - scene.Start).TotalSeconds / span;
+        var count = Math.Max(1, scene.FrameEnd - scene.FrameStart + 1);
+        return scene.FrameStart + (int)Math.Clamp(Math.Floor(local * count), 0, count - 1);
     }
 }

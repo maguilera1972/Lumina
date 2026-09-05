@@ -19,6 +19,13 @@ public static class ShowLoader
 
         if (ext.Equals(".ild", StringComparison.OrdinalIgnoreCase))
         {
+            if (!IldaReader.LooksLikeIlda(path))
+            {
+                throw new InvalidDataException(
+                    $"« {Path.GetFileName(path)} » n’est pas un fichier ILDA valide (en-tête manquant). " +
+                    "Pour un show Mamba, ouvrez le fichier .mrs / .xrs / .xmb.");
+            }
+
             show = FromFrames(Path.GetFileNameWithoutExtension(path), path, ShowKind.IldaAnimation, IldaReader.Read(path));
         }
         else if (ext.Equals(".fra", StringComparison.OrdinalIgnoreCase))
@@ -36,6 +43,19 @@ public static class ShowLoader
 
         LuminaSidecar.ApplyTo(show);
         EnsureLibrary(show);
+        // Réécrire un sidecar propre pour écraser d'anciennes entrées .mrs-as-ILDA.
+        try
+        {
+            if (show.SourcePath is not null && File.Exists(LuminaSidecar.PathFor(show.SourcePath)))
+            {
+                LuminaSidecar.SaveShow(show);
+            }
+        }
+        catch
+        {
+            /* best-effort cleanup */
+        }
+
         return show;
     }
 
@@ -75,7 +95,8 @@ public static class ShowLoader
     private static void EnsureLibrary(LaserShow show)
     {
         if (show.Library.Items.Count > 0 || show.Frames.Count == 0) return;
-        var pattern = show.Library.Add(show.Title, show.Frames, show.SourcePath);
+        var source = LuminaSidecar.IsLaserFrameFile(show.SourcePath) ? show.SourcePath : null;
+        var pattern = show.Library.Add(show.Title, show.Frames, source);
         if (show.Timeline.Clips.Count == 0)
         {
             var length = show.Timeline.Duration > TimeSpan.Zero
