@@ -19,9 +19,9 @@ if ($pending) {
 
 $remote = git remote get-url origin 2>$null
 if (-not $remote) {
-    Write-Host "Pas de remote origin. Ajoutez https://gitlab.aguilera.ch/Aguilera_Lab/laser.git puis relancez."
+    Write-Host "Pas de remote origin. Ajoutez https://gitlab.aguilera.ch/Aguilera_Lab/lumina.git puis relancez."
     exit 1
 }
 
 git push origin HEAD
-Write-Host "Aguilera_Lab/laser mis a jour sur https://gitlab.aguilera.ch"
+Write-Host "Aguilera_Lab/lumina mis a jour sur https://gitlab.aguilera.ch"
